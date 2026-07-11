@@ -1,0 +1,215 @@
+# ============================================
+# GO
+# ============================================
+
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Dependency directories
+vendor/
+node_modules/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Build output
+/bin/
+/dist/
+/build/
+/tmp/
+
+# Coverage
+*.coverprofile
+*.cov
+coverage.out
+coverage.html
+coverage.xml
+
+# Profiling
+*.cpu
+*.mem
+*.pprof
+
+# ============================================
+# IDE
+# ============================================
+
+# GoLand / IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+.history/
+*.code-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.*.swp
+.*.swo
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ============================================
+# OS
+# ============================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+*.pid
+
+# Windows
+Thumbs.db
+desktop.ini
+*.log
+
+# ============================================
+# ENV & CONFIG
+# ============================================
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Config with sensitive data
+*.conf
+*.config
+!config.example.yaml
+!config.example.yml
+
+# Secrets
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+*.secret
+
+# ============================================
+# LOGS
+# ============================================
+
+*.log
+logs/
+*.log.*
+log-*.txt
+
+# ============================================
+# DATABASE
+# ============================================
+
+# PostgreSQL data
+/docker/pgdata/
+/pgdata/
+*.sqlite
+*.sqlite3
+
+# Redis data
+/docker/redis-data/
+
+# ============================================
+# TEMPORARY FILES
+# ============================================
+
+*.tmp
+*.temp
+*.cache
+.cache/
+tmp/
+temp/
+*.backup
+*.bak
+*.swp
+*.swo
+
+# ============================================
+# TEST & DEBUG
+# ============================================
+
+# Test binaries
+*.test
+*.prof
+*.cover
+
+# Debug files
+debug
+__debug_bin*
+*.dSYM/
+
+# ============================================
+# DEPENDENCIES
+# ============================================
+
+# Go modules
+go.sum
+go.mod
+# go.sum и go.mod НЕ нужно добавлять в .gitignore, если они должны быть в репозитории
+# Если вы хотите игнорировать их, раскомментируйте строки выше
+
+# ============================================
+# DOCKER
+# ============================================
+
+docker-compose.override.yml
+docker-compose.*.yml
+!docker-compose.yml
+
+# ============================================
+# MIGRATIONS (если нужно игнорировать)
+# ============================================
+
+# migrations/
+# !migrations/*.sql
+
+# ============================================
+# DOCS
+# ============================================
+
+/docs/_build/
+/docs/site/
+docs/site/
+
+# ============================================
+# PROJECT SPECIFIC
+# ============================================
+
+# Binary name
+/exe
+/app
+/library
+/library.exe
+
+# Custom
+*.pid
+*.port
+__debug_bin
