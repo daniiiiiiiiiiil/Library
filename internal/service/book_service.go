@@ -42,14 +42,14 @@ func limitOffset(limit, offset int) {
 func (b *BookService) CreateBook(ctx context.Context, conn *pgx.Conn, book *domain.Book, authorIDs []int, genreIDs []int) (*domain.Book, error) {
 	// Валидация книги
 	if err := book.Validate(); err != nil {
-		return nil, errors.BusinessError{
-			Code:    "ValidationError",
-			Message: err.Error(),
+		return nil, errors.ValidationError{
+			Field:   err.Error(),
+			Message: "Ошибка валидации" + err.Error(),
 		}
 	}
 
 	// Проверка уникальности ID
-	exists, err := b.BookRepo.Exists(ctx, conn, book.ISBN)
+	exists, err := b.BookRepo.ExistsByISBN(ctx, conn, book.ISBN)
 	if err != nil {
 		return nil, err
 	}

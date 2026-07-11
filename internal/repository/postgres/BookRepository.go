@@ -239,15 +239,20 @@ func GetPopularBook(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]d
 	return books, nil
 }
 
-func ExistsBook(ctx context.Context, conn *pgx.Conn, isbn string) (bool, error) {
-	sqlQuery := `SELECT EXISTS (SELECT * FROM books WHERE isbn = $1)`
+func ExistsBook(ctx context.Context, conn *pgx.Conn, BookID int) (bool, error) {
+	sqlQuery := `SELECT EXISTS (SELECT * FROM books WHERE book_id = $1)`
+	var exists bool
+	err := conn.QueryRow(ctx, sqlQuery, BookID).Scan(&exists)
+	return exists, err
+}
+
+func ExistsByISBN(ctx context.Context, conn *pgx.Conn, isbn string) (bool, error) {
+	sqlQuery := `SELECT EXISTS (SELECT 1 FROM books WHERE isbn = $1)`
 	var exists bool
 	err := conn.QueryRow(ctx, sqlQuery, isbn).Scan(&exists)
-	if err != nil {
-		return false, err
-	}
-	return exists, nil
+	return exists, err
 }
+
 func Count(ctx context.Context, conn *pgx.Conn) (int, error) {
 	sqlQuery := `SELECT COUNT(*) FROM books`
 	var count int

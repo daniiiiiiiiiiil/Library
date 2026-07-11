@@ -96,24 +96,42 @@ func DeleteCopy(ctx context.Context, conn *pgx.Conn, id int) error {
 	return err
 }
 
-func GetAvailableCopy(ctx context.Context, conn *pgx.Conn, bookID int) (domain.BookCopy, error) {
+func GetAvailableCopies(ctx context.Context, conn *pgx.Conn, bookID int) ([]domain.BookCopy, error) {
 	sqlQuery := `
 		SELECT *
 		FROM book_copies
-		WHERE status = 'available' AND book_id = $1`
+		WHERE status = 'available' AND book_id = $1
+		ORDER BY copy_number ASC
+	`
 
-	var bookCopy domain.BookCopy
-	if err := conn.QueryRow(ctx, sqlQuery, bookID).Scan(
-		&bookCopy.ID,
-		&bookCopy.BookID,
-		&bookCopy.CopyNumber,
-		&bookCopy.Status,
-		&bookCopy.Condition,
-		&bookCopy.ReaderID,
-		&bookCopy.BorrowedAt); err != nil {
-		return domain.BookCopy{}, err
+	rows, err := conn.Query(ctx, sqlQuery, bookID)
+	if err != nil {
+		return nil, err
 	}
-	return bookCopy, nil
+	defer rows.Close()
+
+	var copies []domain.BookCopy
+	for rows.Next() {
+		var bookCopy domain.BookCopy
+		if err := rows.Scan(
+			&bookCopy.ID,
+			&bookCopy.BookID,
+			&bookCopy.CopyNumber,
+			&bookCopy.Status,
+			&bookCopy.Condition,
+			&bookCopy.ReaderID,
+			&bookCopy.BorrowedAt,
+		); err != nil {
+			return nil, err
+		}
+		copies = append(copies, bookCopy)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return copies, nil
 }
 
 func UpdateStatusCopy(ctx context.Context, conn *pgx.Conn, id int, status string) error {
@@ -162,4 +180,31 @@ func GetNextCopyNumber(ctx context.Context, conn *pgx.Conn, bookID int) (int, er
 	var nextNumber int
 	err := conn.QueryRow(ctx, sqlQuery, bookID).Scan(&nextNumber)
 	return nextNumber, err
+}
+
+func ExistsCopy(ctx context.Context, conn *pgx.Conn, copyID int) (bool, error) {
+	sqlQuery := `SELECT EXISTS (SELECT * FROM book_copies WHERE book_copy_id = $1)`
+	var exists bool
+	err := conn.QueryRow(ctx, sqlQuery, copyID).Scan(&exists)
+	return exists, err
+}
+func CountByBookID(ctx context.Context, conn *pgx.Conn, bookID int) (int, error) {
+	sqlQuery := `
+		SELECT COUNT(*)
+		FROM book_copies
+		WHERE book_id = $1
+	`
+	var count int
+	err := conn.QueryRow(ctx, sqlQuery, bookID).Scan(&count)
+	return count, err
+}
+
+func ClearReaderAndBorrowed(ctx context.Context, conn *pgx.Conn, id int) error {
+	sqlQuery := `
+		UPDATE book_copies
+		SET reader_id = NULL, borrowed_at = NULL
+		WHERE book_copy_id = $1
+	`
+	_, err := conn.Exec(ctx, sqlQuery, id)
+	return err
 }

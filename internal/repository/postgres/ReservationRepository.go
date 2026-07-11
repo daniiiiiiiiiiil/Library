@@ -160,3 +160,16 @@ func IsBookReservedByOther(ctx context.Context, conn *pgx.Conn, copyID, readerID
 	err := conn.QueryRow(ctx, sqlQuery, copyID, readerID).Scan(&exists)
 	return exists, err
 }
+
+func HasActiveForCopy(ctx context.Context, conn *pgx.Conn, copyID int) (bool, error) {
+	sqlQuery := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM reservations
+			WHERE copy_id = $1 AND status = 'active'
+		)
+	`
+	var exists bool
+	err := conn.QueryRow(ctx, sqlQuery, copyID).Scan(&exists)
+	return exists, err
+}

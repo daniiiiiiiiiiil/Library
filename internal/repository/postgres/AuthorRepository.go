@@ -193,3 +193,74 @@ func DeleteBookAuthorsByBookID(ctx context.Context, conn *pgx.Conn, bookID int) 
 	_, err := conn.Exec(ctx, sqlQuery, bookID)
 	return err
 }
+
+func ExistsByName(ctx context.Context, conn *pgx.Conn, firstName, lastName string) (bool, error) {
+	sqlQuery := `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM authors 
+			WHERE first_name = $1 AND last_name = $2
+		)
+	`
+	var exists bool
+	err := conn.QueryRow(ctx, sqlQuery, firstName, lastName).Scan(&exists)
+	return exists, err
+}
+
+func ExistsByNameExcludeID(ctx context.Context, conn *pgx.Conn, firstName, lastName string, excludeID int) (bool, error) {
+	sqlQuery := `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM authors 
+			WHERE first_name = $1 AND last_name = $2 AND authors_id != $3
+		)
+	`
+	var exists bool
+	err := conn.QueryRow(ctx, sqlQuery, firstName, lastName, excludeID).Scan(&exists)
+	return exists, err
+}
+
+func CountAuthor(ctx context.Context, conn *pgx.Conn) (int, error) {
+	sqlQuery := `SELECT COUNT(*) FROM authors`
+	var count int
+	err := conn.QueryRow(ctx, sqlQuery).Scan(&count)
+	return count, err
+}
+
+func GetBooksByAuthorID(ctx context.Context, conn *pgx.Conn, authorID int) ([]domain.Book, error) {
+	sqlQuery := `
+		SELECT b.book_id, b.title, b.isbn, b.year, b.publisher_id, 
+		       b.description, b.cover_image, b.avg_rating, 
+		       b.reviews_count, b.created_at, b.updated_at
+		FROM books b
+		JOIN book_authors ba ON b.book_id = ba.book_id
+		WHERE ba.authors_id = $1
+	`
+	rows, err := conn.Query(ctx, sqlQuery, authorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var books []domain.Book
+	for rows.Next() {
+		var book domain.Book
+		if err := rows.Scan(
+			&book.ID,
+			&book.Title,
+			&book.ISBN,
+			&book.Year,
+			&book.PublisherID,
+			&book.Description,
+			&book.CoverImageURL,
+			&book.AvgRating,
+			&book.ReviewsCount,
+			&book.CreatedAt,
+			&book.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		books = append(books, book)
+	}
+	return books, nil
+}

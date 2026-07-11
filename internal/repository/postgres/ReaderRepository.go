@@ -275,3 +275,10 @@ func HasDebt(ctx context.Context, conn *pgx.Conn, readerID int) (bool, error) {
 	err := conn.QueryRow(ctx, sqlQuery, readerID).Scan(&exists)
 	return exists, err
 }
+
+func Exists(ctx context.Context, conn *pgx.Conn, id int) (bool, error) {
+	sqlQuery := `SELECT EXISTS (SELECT 1 FROM readers WHERE reader_id = $1)`
+	var exists bool
+	err := conn.QueryRow(ctx, sqlQuery, id).Scan(&exists)
+	return exists, err
+}
