@@ -17,6 +17,20 @@ type CopyService struct {
 	reservationRepo repository.ReservationRepository
 }
 
+func NewCopyService(
+	copyRepo repository.BookCopyRepository,
+	bookRepo repository.BookRepository,
+	readerRepo repository.ReaderRepository,
+	reservationRepo repository.ReservationRepository,
+) *CopyService {
+	return &CopyService{
+		copyRepo:        copyRepo,
+		bookRepo:        bookRepo,
+		readerRepo:      readerRepo,
+		reservationRepo: reservationRepo,
+	}
+}
+
 func (c *CopyService) CreateCopy(ctx context.Context, conn *pgx.Conn, copy domain.BookCopy) error {
 	if err := copy.Validate(); err != nil {
 		return errors.ValidationError{
@@ -40,7 +54,7 @@ func (c *CopyService) CreateCopy(ctx context.Context, conn *pgx.Conn, copy domai
 			}
 		}
 	}
-	if err := c.copyRepo.Create(ctx, conn, copy); err != nil {
+	if err := c.copyRepo.CreateCopy(ctx, conn, &copy); err != nil {
 		return errors.BusinessError{
 			Code:    "ErrCreateCopy",
 			Message: "Не удалось создать копию" + err.Error(),

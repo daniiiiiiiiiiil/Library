@@ -8,13 +8,25 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateAuthor(ctx context.Context, conn *pgx.Conn, author domain.Author) error {
+func CreateAuthor(ctx context.Context, conn *pgx.Conn, author *domain.Author) (*domain.Author, error) {
 	sqlQuery := `
 		INSERT INTO authors (first_name, last_name, biography, birth_date)
 		VALUES ($1, $2, $3, $4)
+		RETURNING authors_id
 	`
-	_, err := conn.Exec(ctx, sqlQuery, author.First_name, author.Last_name, author.Biography, author.Birthday)
-	return err
+	var id int
+	err := conn.QueryRow(ctx, sqlQuery,
+		author.First_name,
+		author.Last_name,
+		author.Biography,
+		author.Birthday,
+	).Scan(&id)
+	if err != nil {
+		return nil, err
+	}
+
+	author.ID = id
+	return author, nil
 }
 
 func GetByIDAuthor(ctx context.Context, conn *pgx.Conn, id int) (domain.Author, error) {

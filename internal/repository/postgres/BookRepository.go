@@ -9,12 +9,14 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateBook(ctx context.Context, conn *pgx.Conn, book domain.Book) error {
+func CreateBook(ctx context.Context, conn *pgx.Conn, book domain.Book) (*domain.Book, error) {
 	sqlQuery := `
-	INSERT INTO books(title,isbn,year,publisher_id,description,cover_image,avg_rating,reviews_count,created_at,updated_at)
-	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+	INSERT INTO books(title, isbn, year, publisher_id, description, cover_image, avg_rating, reviews_count, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	RETURNING book_id
 `
-	_, err := conn.Exec(ctx, sqlQuery,
+	var id int
+	err := conn.QueryRow(ctx, sqlQuery,
 		book.Title,
 		book.ISBN,
 		book.Year,
@@ -24,8 +26,14 @@ func CreateBook(ctx context.Context, conn *pgx.Conn, book domain.Book) error {
 		book.AvgRating,
 		book.ReviewsCount,
 		time.Now(),
-		book.UpdatedAt)
-	return err
+		book.UpdatedAt,
+	).Scan(&id)
+	if err != nil {
+		return nil, err
+	}
+
+	book.ID = id
+	return &book, nil
 }
 
 func GetByIDBook(ctx context.Context, conn *pgx.Conn, id int) (domain.Book, error) {

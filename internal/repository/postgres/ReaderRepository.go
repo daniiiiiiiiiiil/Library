@@ -9,17 +9,31 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateReader(ctx context.Context, conn pgx.Conn, r domain.Reader) error {
+func CreateReader(ctx context.Context, conn *pgx.Conn, reader *domain.Reader) (*domain.Reader, error) {
 	sqlQuery := `
-		INSERT INTO readers (name,phone,email,registered_at,status,max_books,books_count)
-		VALUES ($1, $2, $3, $4, $5, $6,$7);
+		INSERT INTO readers (name, phone, email, registered_at, status, max_books, books_count)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING reader_id
 	`
-	_, err := conn.Exec(ctx, sqlQuery, r.Name, r.Phone, r.Email, time.Now(), "active", r.MaxBooks, 0)
+	var id int
+	err := conn.QueryRow(ctx, sqlQuery,
+		reader.Name,
+		reader.Phone,
+		reader.Email,
+		time.Now(),
+		"active",
+		reader.MaxBooks,
+		0,
+	).Scan(&id)
+	if err != nil {
+		return nil, err
+	}
 
-	return err
+	reader.Id = id
+	return reader, nil
 }
 
-func GetByIDReader(ctx context.Context, conn pgx.Conn, bookID int) (*domain.Reader, error) {
+func GetByIDReader(ctx context.Context, conn *pgx.Conn, bookID int) (*domain.Reader, error) {
 	sqlQuery := `
 		SELECT *
 		FROM readers
@@ -38,7 +52,7 @@ func GetByIDReader(ctx context.Context, conn pgx.Conn, bookID int) (*domain.Read
 	return &reader, err
 }
 
-func GetByEmailReader(ctx context.Context, conn pgx.Conn, email string) (*domain.Reader, error) {
+func GetByEmailReader(ctx context.Context, conn *pgx.Conn, email string) (*domain.Reader, error) {
 	sqlQuery := `
 		SELECT *
 		FROM readers
@@ -56,7 +70,7 @@ func GetByEmailReader(ctx context.Context, conn pgx.Conn, email string) (*domain
 	return &reader, err
 }
 
-func UpdateReader(ctx context.Context, conn pgx.Conn, bookID int, r domain.Reader) error {
+func UpdateReader(ctx context.Context, conn *pgx.Conn, bookID int, r domain.Reader) error {
 	sqlQuery := `
 			UPDATE readers
 			SET name = $1,phone = $2,email = $3
@@ -65,7 +79,7 @@ func UpdateReader(ctx context.Context, conn pgx.Conn, bookID int, r domain.Reade
 	return err
 }
 
-func DeleteReader(ctx context.Context, conn pgx.Conn, bookID int) error {
+func DeleteReader(ctx context.Context, conn *pgx.Conn, bookID int) error {
 	sqlQuery := `
 		DELETE FROM readers
 		WHERE reader_id = $1`
@@ -73,7 +87,7 @@ func DeleteReader(ctx context.Context, conn pgx.Conn, bookID int) error {
 	return err
 }
 
-func ListReaders(ctx context.Context, conn pgx.Conn, limit, offset int) ([]domain.Reader, error) {
+func ListReaders(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error) {
 	sqlQuery := `
 		SELECT *
 		FROM readers
@@ -117,7 +131,7 @@ func printReader(readers domain.Reader) {
 	fmt.Println("Books Count:", readers.BooksCount)
 }
 
-func GetActive(ctx context.Context, conn pgx.Conn, limit, offset int) (*[]domain.Reader, error) {
+func GetActive(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error) {
 	sqlQuery := `
 		SELECT *
 		FROM readers
@@ -126,7 +140,7 @@ func GetActive(ctx context.Context, conn pgx.Conn, limit, offset int) (*[]domain
 		LIMIT $1 OFFSET $2;`
 	rows, err := conn.Query(ctx, sqlQuery, limit, offset)
 	if err != nil {
-		return &[]domain.Reader{}, err
+		return []domain.Reader{}, err
 	}
 	defer rows.Close()
 	var readers []domain.Reader
@@ -141,15 +155,15 @@ func GetActive(ctx context.Context, conn pgx.Conn, limit, offset int) (*[]domain
 			&reader.Status,
 			&reader.MaxBooks,
 			&reader.BooksCount); err != nil {
-			return &[]domain.Reader{}, err
+			return []domain.Reader{}, err
 		}
 		readers = append(readers, reader)
 		printReader(reader)
 	}
-	return &readers, nil
+	return readers, nil
 }
 
-func GetDebtors(ctx context.Context, conn pgx.Conn, limit, offset int) (*[]domain.Reader, error) {
+func GetDebtors(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error) {
 	sqlQuery := `
 		SELECT DISTINCT
 			r.reader_id,
@@ -164,7 +178,7 @@ func GetDebtors(ctx context.Context, conn pgx.Conn, limit, offset int) (*[]domai
 		LIMIT $1 OFFSET $2;`
 	rows, err := conn.Query(ctx, sqlQuery, limit, offset)
 	if err != nil {
-		return &[]domain.Reader{}, err
+		return []domain.Reader{}, err
 	}
 	defer rows.Close()
 	var readers []domain.Reader
@@ -183,10 +197,10 @@ func GetDebtors(ctx context.Context, conn pgx.Conn, limit, offset int) (*[]domai
 		readers = append(readers, reader)
 		printReader(reader)
 	}
-	return &readers, nil
+	return readers, nil
 }
 
-func BlockReader(ctx context.Context, conn pgx.Conn, readerId int) error {
+func BlockReader(ctx context.Context, conn *pgx.Conn, readerId int) error {
 	sqlQuery := `
 	UPDATE readers
 	SET status = 'blocked'
@@ -196,7 +210,7 @@ func BlockReader(ctx context.Context, conn pgx.Conn, readerId int) error {
 	return err
 }
 
-func UnBlockReader(ctx context.Context, conn pgx.Conn, readerId int) error {
+func UnBlockReader(ctx context.Context, conn *pgx.Conn, readerId int) error {
 	sqlQuery := `
 	UPDATE readers
 	SET status = 'active'
@@ -206,7 +220,7 @@ func UnBlockReader(ctx context.Context, conn pgx.Conn, readerId int) error {
 	return err
 }
 
-func IncrementBookCount(ctx context.Context, conn pgx.Conn, readerId int) error {
+func IncrementBookCount(ctx context.Context, conn *pgx.Conn, readerId int) error {
 	sqlQuery := `
 		UPDATE readers
 		SET books_count = books_count + 1
@@ -215,7 +229,7 @@ func IncrementBookCount(ctx context.Context, conn pgx.Conn, readerId int) error 
 	return err
 }
 
-func DecrementBookCount(ctx context.Context, conn pgx.Conn, readerId int) error {
+func DecrementBookCount(ctx context.Context, conn *pgx.Conn, readerId int) error {
 	sqlQuery := `
 		UPDATE readers
 		SET books_count = books_count - 1
@@ -224,7 +238,7 @@ func DecrementBookCount(ctx context.Context, conn pgx.Conn, readerId int) error 
 	return err
 }
 
-func UpdateStatusReader(ctx context.Context, conn pgx.Conn, readerID int, r domain.Reader) error {
+func UpdateStatusReader(ctx context.Context, conn *pgx.Conn, readerID int, r domain.Reader) error {
 	sqlQuery := `
 		UPDATE readers
 		SET status = $1
@@ -243,7 +257,7 @@ func ExistsEmail(ctx context.Context, conn *pgx.Conn, email string) (bool, error
 	return exists, nil
 }
 func ExistsPhone(ctx context.Context, conn *pgx.Conn, phone string) (bool, error) {
-	sqlQuery := `SELECT EXISTS (SELECT 1 FROM phone WHERE phone = $1)`
+	sqlQuery := `SELECT EXISTS (SELECT 1 FROM readers WHERE phone = $1)`
 	var exists bool
 	err := conn.QueryRow(ctx, sqlQuery, phone).Scan(&exists)
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 )
 
 type BookRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, book domain.Book) error
+	CreateBook(ctx context.Context, conn *pgx.Conn, book domain.Book) (*domain.Book, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Book, error)
 	GetByISBN(ctx context.Context, conn *pgx.Conn, isbn string) (domain.Book, error)
 	Update(ctx context.Context, conn *pgx.Conn, id int, book domain.Book) error
@@ -25,7 +25,7 @@ type BookRepository interface {
 }
 
 type AuthorRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, author domain.Author) error
+	CreateAuthor(ctx context.Context, conn *pgx.Conn, author *domain.Author) (*domain.Author, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Author, error)
 	Update(ctx context.Context, conn *pgx.Conn, author domain.Author) error
 	Delete(ctx context.Context, conn *pgx.Conn, id int) error
@@ -42,21 +42,25 @@ type AuthorRepository interface {
 }
 
 type GenreRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, genre domain.Genre) error
-	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Genre, error)
+	CreateGenre(ctx context.Context, conn *pgx.Conn, genre domain.Genre) (*domain.Genre, error)
+	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Genre, error)
 	Update(ctx context.Context, conn *pgx.Conn, genre domain.Genre) error
-	Delete(ctx context.Context, conn *pgx.Conn, id int) error
+	Delete(ctx context.Context, conn *pgx.Conn, id int) (*domain.Genre, error)
 	List(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Genre, error)
 	Search(ctx context.Context, conn *pgx.Conn, column, search string, limit, offset int) ([]domain.Genre, int, error)
 	Exists(ctx context.Context, conn *pgx.Conn, id int) (bool, error)
+	ExistsByNameGenre(ctx context.Context, conn *pgx.Conn, name string) (bool, error)
 	GetSubGenres(ctx context.Context, conn *pgx.Conn, parentID int) ([]domain.Genre, error)
 	GetRootGenres(ctx context.Context, conn *pgx.Conn) ([]domain.Genre, error)
 	CreateBookGenre(ctx context.Context, conn *pgx.Conn, bookID, genreID int) error
 	DeleteBookGenresByBookID(ctx context.Context, conn *pgx.Conn, bookID int) error
+	ExistsByNameExcludeIDGenre(ctx context.Context, conn *pgx.Conn, name string, excludeID int) (bool, error)
+	CountSubGenres(ctx context.Context, conn *pgx.Conn, genreID int) (int, error)
+	CountBooksByGenreID(ctx context.Context, conn *pgx.Conn, genreID int) (int, error)
 }
 
 type PublisherRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, publisher domain.Publisher) error
+	CreatePublisher(ctx context.Context, conn *pgx.Conn, publisher domain.Publisher) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Publisher, error)
 	Update(ctx context.Context, conn *pgx.Conn, publisher domain.Publisher) error
 	Delete(ctx context.Context, conn *pgx.Conn, id int) error
@@ -66,7 +70,7 @@ type PublisherRepository interface {
 }
 
 type BookCopyRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, copy domain.BookCopy) error
+	CreateCopy(ctx context.Context, conn *pgx.Conn, copy *domain.BookCopy) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.BookCopy, error)
 	GetCopiesByBookID(ctx context.Context, conn *pgx.Conn, bookID, limit, offset int) ([]domain.BookCopy, error)
 	Update(ctx context.Context, conn *pgx.Conn, copy domain.BookCopy) error
@@ -82,7 +86,7 @@ type BookCopyRepository interface {
 }
 
 type ReaderRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, reader domain.Reader) error
+	CreateReader(ctx context.Context, conn *pgx.Conn, reader *domain.Reader) (*domain.Reader, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reader, error)
 	GetByEmail(ctx context.Context, conn *pgx.Conn, email string) (*domain.Reader, error)
 	Update(ctx context.Context, conn *pgx.Conn, id int, reader domain.Reader) error
@@ -103,7 +107,7 @@ type ReaderRepository interface {
 }
 
 type UserRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, user domain.User) error
+	CreateUser(ctx context.Context, conn *pgx.Conn, user domain.User) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.User, error)
 	GetByEmail(ctx context.Context, conn *pgx.Conn, email string) (domain.User, error)
 	Update(ctx context.Context, conn *pgx.Conn, user domain.User) error
@@ -114,7 +118,7 @@ type UserRepository interface {
 }
 
 type TransactionRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, transaction domain.Transaction) error
+	CreateTransaction(ctx context.Context, conn *pgx.Conn, transaction domain.Transaction) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Transaction, error)
 	Update(ctx context.Context, conn *pgx.Conn, transaction domain.Transaction) error
 	ListByReader(ctx context.Context, conn *pgx.Conn, readerID, limit, offset int) ([]domain.Transaction, error)
@@ -125,12 +129,12 @@ type TransactionRepository interface {
 	ReturnBook(ctx context.Context, conn *pgx.Conn, transactionID int, returnDate time.Time, fine float64) error
 	BorrowBook(ctx context.Context, conn *pgx.Conn, copyID, readerID int, dueDate time.Time) error
 	CountByReader(ctx context.Context, conn *pgx.Conn, readerID int, limit, offset int) ([]domain.Transaction, int, error)
-	IsTransactionActive(ctx context.Context, conn *pgx.Conn, transactionID int) (bool, error)
 	CountByBook(ctx context.Context, conn *pgx.Conn, bookID int, limit, offset int) ([]domain.Transaction, int, error)
+	IsTransactionActive(ctx context.Context, conn *pgx.Conn, transactionID int) (bool, error)
 }
 
 type ReservationRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, reservation domain.Reservation) error
+	CreateReservation(ctx context.Context, conn *pgx.Conn, reservation domain.Reservation) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reservation, error)
 	GetActiveByReader(ctx context.Context, conn *pgx.Conn, readerID, limit, offset int) ([]domain.Reservation, error)
 	GetActiveByCopy(ctx context.Context, conn *pgx.Conn, copyID, limit, offset int) ([]domain.Reservation, error)
@@ -142,7 +146,7 @@ type ReservationRepository interface {
 }
 
 type ReviewRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, review domain.Review) error
+	CreateReview(ctx context.Context, conn *pgx.Conn, review domain.Review) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Review, error)
 	Update(ctx context.Context, conn *pgx.Conn, review domain.Review) error
 	Delete(ctx context.Context, conn *pgx.Conn, id int) error
@@ -156,15 +160,16 @@ type ReviewRepository interface {
 }
 
 type AuditLogRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, log audit.AuditLog) error
+	CreateAuditLog(ctx context.Context, conn *pgx.Conn, log audit.AuditLog) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (audit.AuditLog, error)
 	List(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]audit.AuditLog, error)
 	GetByEntity(ctx context.Context, conn *pgx.Conn, entityType string, entityID, limit, offset int) ([]audit.AuditLog, error)
 	GetByUser(ctx context.Context, conn *pgx.Conn, userID, limit, offset int) ([]audit.AuditLog, error)
 	GetByAction(ctx context.Context, conn *pgx.Conn, action string, limit, offset int) ([]audit.AuditLog, error)
 }
+
 type SettingRepository interface {
-	Create(ctx context.Context, conn *pgx.Conn, setting settings.Setting) error
+	CreateSetting(ctx context.Context, conn *pgx.Conn, setting settings.Setting) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (settings.Setting, error)
 	GetByKey(ctx context.Context, conn *pgx.Conn, key string) (settings.Setting, error)
 	Update(ctx context.Context, conn *pgx.Conn, setting settings.Setting) error

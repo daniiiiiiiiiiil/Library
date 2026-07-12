@@ -27,12 +27,14 @@ func NewTransactionService(
 	copyRepo repository.BookCopyRepository,
 	readerRepo repository.ReaderRepository,
 	reservationRepo repository.ReservationRepository,
+	settingRepo repository.SettingRepository,
 ) *TransactionService {
 	return &TransactionService{
 		txRepo:          txRepo,
 		copyRepo:        copyRepo,
 		readerRepo:      readerRepo,
 		reservationRepo: reservationRepo,
+		settingsRepo:    settingRepo,
 	}
 }
 
@@ -111,7 +113,7 @@ func (t *TransactionService) BorrowBook(ctx context.Context, conn *pgx.Conn, cop
 		Types:      "borrow",
 	}
 
-	if err := t.txRepo.Create(ctx, conn, transaction); err != nil {
+	if err := t.txRepo.CreateTransaction(ctx, conn, transaction); err != nil {
 		return nil, err
 	}
 

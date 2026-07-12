@@ -20,13 +20,21 @@ type BookService struct {
 	AuditRepo     repository.AuditLogRepository
 }
 
-func NewBookService(bookRepo repository.BookRepository, copyRepo repository.BookCopyRepository, authorRepo repository.AuthorRepository, genreRepo repository.GenreRepository, auditRepo repository.AuditLogRepository) *BookService {
+func NewBookService(
+	bookRepo repository.BookRepository,
+	copyRepo repository.BookCopyRepository,
+	authorRepo repository.AuthorRepository,
+	genreRepo repository.GenreRepository,
+	publisherRepo repository.PublisherRepository,
+	auditRepo repository.AuditLogRepository,
+) *BookService {
 	return &BookService{
-		BookRepo:   bookRepo,
-		CopyRepo:   copyRepo,
-		AuthorRepo: authorRepo,
-		GenreRepo:  genreRepo,
-		AuditRepo:  auditRepo,
+		BookRepo:      bookRepo,
+		CopyRepo:      copyRepo,
+		AuthorRepo:    authorRepo,
+		GenreRepo:     genreRepo,
+		PublisherRepo: publisherRepo,
+		AuditRepo:     auditRepo,
 	}
 }
 
@@ -103,7 +111,8 @@ func (b *BookService) CreateBook(ctx context.Context, conn *pgx.Conn, book *doma
 	}
 
 	//  Создание книги
-	if err := b.BookRepo.Create(ctx, conn, *book); err != nil {
+	newBook, err := b.BookRepo.CreateBook(ctx, conn, *book)
+	if err != nil {
 		return nil, err
 	}
 
@@ -122,7 +131,7 @@ func (b *BookService) CreateBook(ctx context.Context, conn *pgx.Conn, book *doma
 	}
 
 	// Логирование в аудит
-	if err := b.AuditRepo.Create(ctx, conn, audit.AuditLog{
+	if err := b.AuditRepo.CreateAuditLog(ctx, conn, audit.AuditLog{
 		UserID:     nil,
 		Action:     "CREATE",
 		EntityType: "book",
@@ -132,7 +141,7 @@ func (b *BookService) CreateBook(ctx context.Context, conn *pgx.Conn, book *doma
 	}
 
 	// Возвращаем созданную книгу
-	return book, nil
+	return newBook, nil
 }
 
 func (b *BookService) GetBook(ctx context.Context, conn *pgx.Conn, id int) (*domain.Book, error) {
@@ -143,7 +152,7 @@ func (b *BookService) GetBook(ctx context.Context, conn *pgx.Conn, id int) (*dom
 			ID:     id,
 		}
 	}
-	if err := b.AuditRepo.Create(ctx, conn, audit.AuditLog{
+	if err := b.AuditRepo.CreateAuditLog(ctx, conn, audit.AuditLog{
 		UserID:     nil,
 		Action:     "GET",
 		EntityType: "book",
@@ -237,7 +246,7 @@ func (b *BookService) UpdateBook(ctx context.Context, conn *pgx.Conn, id int, up
 	}
 
 	// Логирование в аудит
-	if err := b.AuditRepo.Create(ctx, conn, audit.AuditLog{
+	if err := b.AuditRepo.CreateAuditLog(ctx, conn, audit.AuditLog{
 		UserID:     nil,
 		Action:     "UPDATE",
 		EntityType: "book",
@@ -285,7 +294,7 @@ func (b *BookService) DeleteBook(ctx context.Context, conn *pgx.Conn, bookID int
 		}
 	}
 
-	if err := b.AuditRepo.Create(ctx, conn, audit.AuditLog{
+	if err := b.AuditRepo.CreateAuditLog(ctx, conn, audit.AuditLog{
 		UserID:     nil,
 		Action:     "DELETE",
 		EntityType: "book",
@@ -370,7 +379,7 @@ func (b *BookService) AddCopyToBook(ctx context.Context, conn *pgx.Conn, bookID 
 		}
 	}
 
-	if err := b.CopyRepo.Create(ctx, conn, newCopy); err != nil {
+	if err := b.CopyRepo.CreateCopy(ctx, conn, &newCopy); err != nil {
 		return errors.BusinessError{
 			Code:    "create_copy_error",
 			Message: "Не удалось создать экземпляр книги: " + err.Error(),

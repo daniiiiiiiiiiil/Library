@@ -58,7 +58,8 @@ func (r *ReaderService) CreateReader(ctx context.Context, conn *pgx.Conn, reader
 		}
 	}
 	reader.Status = "active"
-	if err := r.readerRepo.Create(ctx, conn, *reader); err != nil {
+	createReader, err := r.readerRepo.CreateReader(ctx, conn, reader)
+	if err != nil {
 		return nil, err
 	}
 
@@ -69,11 +70,11 @@ func (r *ReaderService) CreateReader(ctx context.Context, conn *pgx.Conn, reader
 		ReaderID:     &reader.Id,
 	}
 
-	if err := r.userRepo.Create(ctx, conn, user); err != nil {
+	if err := r.userRepo.CreateUser(ctx, conn, user); err != nil {
 		return nil, err
 	}
 
-	return reader, nil
+	return createReader, nil
 }
 
 func (r *ReaderService) GetReader(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reader, error) {
@@ -92,10 +93,10 @@ func (r *ReaderService) GetByEmail(ctx context.Context, conn *pgx.Conn, email st
 	return reader, nil
 }
 
-func (r *ReaderService) Update(ctx context.Context, conn *pgx.Conn, id int, updates map[string]interface{}) (*domain.Reader, error) {
+func (r *ReaderService) Update(ctx context.Context, conn *pgx.Conn, id int, updates map[string]interface{}) error {
 	existingReader, err := r.readerRepo.GetByID(ctx, conn, id)
 	if err != nil {
-		return nil, errors.NotFoundError{
+		return errors.NotFoundError{
 			Entity: "Reader",
 			ID:     id,
 		}
@@ -121,16 +122,16 @@ func (r *ReaderService) Update(ctx context.Context, conn *pgx.Conn, id int, upda
 	}
 
 	if err := existingReader.ValidateReader(); err != nil {
-		return nil, errors.BusinessError{
+		return errors.BusinessError{
 			Code:    "ErrValidation",
 			Message: "Не прошли валидацию" + err.Error(),
 		}
 	}
 
 	if err := r.readerRepo.Update(ctx, conn, id, *existingReader); err != nil {
-		return nil, err
+		return err
 	}
-	return existingReader, nil
+	return nil
 }
 
 func (r *ReaderService) Delete(ctx context.Context, conn *pgx.Conn, id int) error {

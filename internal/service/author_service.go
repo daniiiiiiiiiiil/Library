@@ -49,14 +49,15 @@ func (s *AuthorService) CreateAuthor(ctx context.Context, conn *pgx.Conn, author
 		}
 	}
 
-	if err := s.authorRepo.Create(ctx, conn, *author); err != nil {
+	createAuthor, err := s.authorRepo.CreateAuthor(ctx, conn, author)
+	if err != nil {
 		return nil, errors.BusinessError{
 			Code:    "ErrCreateAuthor",
 			Message: "Не удалось создать автора: " + err.Error(),
 		}
 	}
 
-	if err := s.auditRepo.Create(ctx, conn, audit.AuditLog{
+	if err := s.auditRepo.CreateAuditLog(ctx, conn, audit.AuditLog{
 		UserID:     nil,
 		Action:     "CREATE",
 		EntityType: "author",
@@ -65,7 +66,7 @@ func (s *AuthorService) CreateAuthor(ctx context.Context, conn *pgx.Conn, author
 		return nil, err
 	}
 
-	return author, nil
+	return createAuthor, nil
 }
 
 func (s *AuthorService) GetAuthor(ctx context.Context, conn *pgx.Conn, id int) (*domain.Author, error) {
