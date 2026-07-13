@@ -124,3 +124,11 @@ func (r Reader) Unblock(id int) error {
 	r.Status = "active"
 	return nil
 }
+
+func (r Reader) IsActive() bool {
+	return r.Status == "active"
+}
+
+func (r Reader) IsBlocked() bool {
+	return r.Status == "blocked"
+}

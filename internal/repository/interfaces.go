@@ -22,6 +22,10 @@ type BookRepository interface {
 	Exists(ctx context.Context, conn *pgx.Conn, id int) (bool, error)
 	ExistsByISBN(ctx context.Context, conn *pgx.Conn, isbn string) (bool, error)
 	Count(ctx context.Context, conn *pgx.Conn) (int, error)
+	GetByPublisherID(ctx context.Context, conn *pgx.Conn, publisherID, limit, offset int) ([]domain.Book, error)
+	CountByPublisherID(ctx context.Context, conn *pgx.Conn, publisherID int) (int, error)
+	UpdateRating(ctx context.Context, conn *pgx.Conn, bookID int, avgRating float64) error
+	UpdateRatingAndCount(ctx context.Context, conn *pgx.Conn, bookID int, reviewsCount int) error
 }
 
 type AuthorRepository interface {
@@ -60,13 +64,18 @@ type GenreRepository interface {
 }
 
 type PublisherRepository interface {
-	CreatePublisher(ctx context.Context, conn *pgx.Conn, publisher domain.Publisher) error
+	Create(ctx context.Context, conn *pgx.Conn, publisher domain.Publisher) (*domain.Publisher, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Publisher, error)
-	Update(ctx context.Context, conn *pgx.Conn, publisher domain.Publisher) error
+	Update(ctx context.Context, conn *pgx.Conn, id int, publisher domain.Publisher) error
 	Delete(ctx context.Context, conn *pgx.Conn, id int) error
 	List(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Publisher, error)
 	Search(ctx context.Context, conn *pgx.Conn, column, search string, limit, offset int) ([]domain.Publisher, int, error)
 	Exists(ctx context.Context, conn *pgx.Conn, id int) (bool, error)
+	ExistsByName(ctx context.Context, conn *pgx.Conn, name string) (bool, error)
+	ExistsByNameExcludeID(ctx context.Context, conn *pgx.Conn, name string, excludeID int) (bool, error)
+	Count(ctx context.Context, conn *pgx.Conn) (int, error)
+	GetByPublisherID(ctx context.Context, conn *pgx.Conn, publisherID, limit, offset int) ([]domain.Book, error)
+	CountByPublisherID(ctx context.Context, conn *pgx.Conn, publisherID int) (int, error)
 }
 
 type BookCopyRepository interface {
@@ -131,10 +140,11 @@ type TransactionRepository interface {
 	CountByReader(ctx context.Context, conn *pgx.Conn, readerID int, limit, offset int) ([]domain.Transaction, int, error)
 	CountByBook(ctx context.Context, conn *pgx.Conn, bookID int, limit, offset int) ([]domain.Transaction, int, error)
 	IsTransactionActive(ctx context.Context, conn *pgx.Conn, transactionID int) (bool, error)
+	HasReaderBorrowedBook(ctx context.Context, conn *pgx.Conn, readerID, bookID int) (bool, error)
 }
 
 type ReservationRepository interface {
-	CreateReservation(ctx context.Context, conn *pgx.Conn, reservation domain.Reservation) error
+	CreateReservation(ctx context.Context, conn *pgx.Conn, reservation *domain.Reservation) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reservation, error)
 	GetActiveByReader(ctx context.Context, conn *pgx.Conn, readerID, limit, offset int) ([]domain.Reservation, error)
 	GetActiveByCopy(ctx context.Context, conn *pgx.Conn, copyID, limit, offset int) ([]domain.Reservation, error)
@@ -146,7 +156,7 @@ type ReservationRepository interface {
 }
 
 type ReviewRepository interface {
-	CreateReview(ctx context.Context, conn *pgx.Conn, review domain.Review) error
+	CreateReview(ctx context.Context, conn *pgx.Conn, review domain.Review) (*domain.Review, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Review, error)
 	Update(ctx context.Context, conn *pgx.Conn, review domain.Review) error
 	Delete(ctx context.Context, conn *pgx.Conn, id int) error

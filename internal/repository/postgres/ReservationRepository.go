@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateReservation(ctx context.Context, conn *pgx.Conn, reserv domain.Reservation) error {
+func CreateReservation(ctx context.Context, conn *pgx.Conn, reserv *domain.Reservation) error {
 	sqlQuery := `
 	INSERT INTO reservations (copy_id,reader_id,reserved_at,expires_at,status)
 	VALUES ($1,$2,$3,$4,$5)

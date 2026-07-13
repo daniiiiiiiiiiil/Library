@@ -36,7 +36,7 @@ func GetByIDPublisher(ctx context.Context, conn *pgx.Conn, id int) (domain.Publi
 	return publisher, nil
 }
 
-func UpdatePublisher(ctx context.Context, conn *pgx.Conn, publisher domain.Publisher) error {
+func UpdatePublisher(ctx context.Context, conn *pgx.Conn, id, publisher *domain.Publisher) error {
 	sqlQuery := `
 		UPDATE publishers
 		SET name = $1, address = $2, phone = $3
@@ -46,7 +46,7 @@ func UpdatePublisher(ctx context.Context, conn *pgx.Conn, publisher domain.Publi
 		publisher.Name,
 		publisher.Address,
 		publisher.Phone,
-		publisher.ID,
+		id,
 	)
 	return err
 }

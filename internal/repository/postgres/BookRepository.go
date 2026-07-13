@@ -267,3 +267,62 @@ func Count(ctx context.Context, conn *pgx.Conn) (int, error) {
 	err := conn.QueryRow(ctx, sqlQuery).Scan(&count)
 	return count, err
 }
+
+func GetByPublisherID(ctx context.Context, conn *pgx.Conn, publisherID, limit, offset int) ([]domain.Book, error) {
+	sqlQuery := `
+		SELECT book_id, title, isbn, year, publisher_id, description, cover_image, 
+		       avg_rating, reviews_count, created_at, updated_at
+		FROM books
+		WHERE publisher_id = $1
+		ORDER BY title ASC
+		LIMIT $2 OFFSET $3
+	`
+	rows, err := conn.Query(ctx, sqlQuery, publisherID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var books []domain.Book
+	for rows.Next() {
+		var book domain.Book
+		if err := rows.Scan(
+			&book.ID,
+			&book.Title,
+			&book.ISBN,
+			&book.Year,
+			&book.PublisherID,
+			&book.Description,
+			&book.CoverImageURL,
+			&book.AvgRating,
+			&book.ReviewsCount,
+			&book.CreatedAt,
+			&book.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		books = append(books, book)
+	}
+	return books, nil
+}
+
+func CountByPublisherID(ctx context.Context, conn *pgx.Conn, publisherID int) (int, error) {
+	sqlQuery := `
+		SELECT COUNT(*)
+		FROM books
+		WHERE publisher_id = $1
+	`
+	var count int
+	err := conn.QueryRow(ctx, sqlQuery, publisherID).Scan(&count)
+	return count, err
+}
+
+func UpdateRatingAndCount(ctx context.Context, conn *pgx.Conn, bookID int, reviewsCount int) error {
+	sqlQuery := `
+		UPDATE books
+		SET reviews_count = $1
+		WHERE book_id = $2
+	`
+	_, err := conn.Exec(ctx, sqlQuery, reviewsCount, bookID)
+	return err
+}
