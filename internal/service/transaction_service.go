@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"library/internal/domain"
-	"library/internal/infrastructure/settings"
 	"library/internal/repository"
 	"library/pkg/errors"
 	"strconv"
@@ -265,7 +264,7 @@ func (t *TransactionService) ProcessOverdueTransactions(ctx context.Context, con
 	fineRate, err := t.settingsRepo.GetByKey(ctx, conn, "fine_rate_per_day")
 	if err != nil {
 		// Если настройки нет, используем значение по умолчанию
-		fineRate = settings.Setting{Value: "1.50"}
+		fineRate = domain.Setting{Value: "1.50"}
 	}
 
 	rate, _ := strconv.ParseFloat(fineRate.Value, 64)

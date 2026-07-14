@@ -1,13 +1,14 @@
-package settings
+package postgres
 
 import (
 	"context"
+	"library/internal/domain"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateSetting(ctx context.Context, conn *pgx.Conn, setting Setting) error {
+func CreateSetting(ctx context.Context, conn *pgx.Conn, setting domain.Setting) error {
 	sqlQuery := `
 		INSERT INTO settings (key, value, description, updated_at)
 		VALUES ($1, $2, $3, $4)
@@ -21,13 +22,13 @@ func CreateSetting(ctx context.Context, conn *pgx.Conn, setting Setting) error {
 	return err
 }
 
-func GetByIDSetting(ctx context.Context, conn *pgx.Conn, id int) (Setting, error) {
+func GetByIDSetting(ctx context.Context, conn *pgx.Conn, id int) (domain.Setting, error) {
 	sqlQuery := `
 		SELECT setting_id, key, value, description, updated_at
 		FROM settings
 		WHERE setting_id = $1
 	`
-	var setting Setting
+	var setting domain.Setting
 	err := conn.QueryRow(ctx, sqlQuery, id).Scan(
 		&setting.ID,
 		&setting.Key,
@@ -36,18 +37,18 @@ func GetByIDSetting(ctx context.Context, conn *pgx.Conn, id int) (Setting, error
 		&setting.UpdatedAt,
 	)
 	if err != nil {
-		return Setting{}, err
+		return domain.Setting{}, err
 	}
 	return setting, nil
 }
 
-func GetByKeySetting(ctx context.Context, conn *pgx.Conn, key string) (Setting, error) {
+func GetByKeySetting(ctx context.Context, conn *pgx.Conn, key string) (domain.Setting, error) {
 	sqlQuery := `
 		SELECT setting_id, key, value, description, updated_at
 		FROM settings
 		WHERE key = $1
 	`
-	var setting Setting
+	var setting domain.Setting
 	err := conn.QueryRow(ctx, sqlQuery, key).Scan(
 		&setting.ID,
 		&setting.Key,
@@ -56,12 +57,12 @@ func GetByKeySetting(ctx context.Context, conn *pgx.Conn, key string) (Setting, 
 		&setting.UpdatedAt,
 	)
 	if err != nil {
-		return Setting{}, err
+		return domain.Setting{}, err
 	}
 	return setting, nil
 }
 
-func UpdateSetting(ctx context.Context, conn *pgx.Conn, setting Setting) error {
+func UpdateSetting(ctx context.Context, conn *pgx.Conn, setting domain.Setting) error {
 	sqlQuery := `
 		UPDATE settings
 		SET value = $1, description = $2, updated_at = $3
@@ -104,7 +105,7 @@ func DeleteSettingByKey(ctx context.Context, conn *pgx.Conn, key string) error {
 	return err
 }
 
-func ListSettings(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]Setting, error) {
+func ListSettings(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Setting, error) {
 	sqlQuery := `
 		SELECT setting_id, key, value, description, updated_at
 		FROM settings
@@ -117,9 +118,9 @@ func ListSettings(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]Set
 	}
 	defer rows.Close()
 
-	var settings []Setting
+	var settings []domain.Setting
 	for rows.Next() {
-		var setting Setting
+		var setting domain.Setting
 		if err := rows.Scan(
 			&setting.ID,
 			&setting.Key,

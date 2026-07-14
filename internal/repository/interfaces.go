@@ -4,7 +4,6 @@ import (
 	"context"
 	"library/internal/domain"
 	"library/internal/infrastructure/audit"
-	"library/internal/infrastructure/settings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -179,13 +178,13 @@ type AuditLogRepository interface {
 }
 
 type SettingRepository interface {
-	CreateSetting(ctx context.Context, conn *pgx.Conn, setting settings.Setting) error
-	GetByID(ctx context.Context, conn *pgx.Conn, id int) (settings.Setting, error)
-	GetByKey(ctx context.Context, conn *pgx.Conn, key string) (settings.Setting, error)
-	Update(ctx context.Context, conn *pgx.Conn, setting settings.Setting) error
+	CreateSetting(ctx context.Context, conn *pgx.Conn, setting domain.Setting) error
+	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Setting, error)
+	GetByKey(ctx context.Context, conn *pgx.Conn, key string) (domain.Setting, error)
+	Update(ctx context.Context, conn *pgx.Conn, setting domain.Setting) error
 	UpdateByKey(ctx context.Context, conn *pgx.Conn, key, value string) error
 	Delete(ctx context.Context, conn *pgx.Conn, id int) error
 	DeleteByKey(ctx context.Context, conn *pgx.Conn, key string) error
-	List(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]settings.Setting, error)
+	List(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Setting, error)
 	Exists(ctx context.Context, conn *pgx.Conn, key string) (bool, error)
 }
