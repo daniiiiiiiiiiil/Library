@@ -156,3 +156,29 @@ func (t *Transaction) Complete(returnedAt time.Time, ratePerDay float64) error {
 
 	return nil
 }
+
+func (t Transaction) CalculateDaysOverdue() int {
+	if t.Status == "completed" && !t.IsOverdue() {
+		return 0
+	}
+
+	var compareDate time.Time
+	if t.ReturnedAt != nil {
+		compareDate = *t.ReturnedAt
+	} else {
+		compareDate = time.Now()
+	}
+
+	if compareDate.Before(t.DueDate) || compareDate.Equal(t.DueDate) {
+		return 0
+	}
+
+	diff := compareDate.Sub(t.DueDate)
+	days := int(diff.Hours() / 24)
+
+	if diff.Hours() > float64(days*24) {
+		days++
+	}
+
+	return days
+}

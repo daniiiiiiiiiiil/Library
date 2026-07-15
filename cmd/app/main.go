@@ -118,9 +118,20 @@ func main() {
 		Birthday:   time.Date(1828, 9, 9, 0, 0, 0, 0, time.UTC),
 	})
 	if err != nil {
-		logg.Error("CreateAuthor error", zap.Error(err))
+		logg.Warn("CreateAuthor error (may already exist)", zap.Error(err))
+		authors, _, _ := authorService.ListAuthors(ctx, conn, 10, 0)
+		for _, a := range authors {
+			if a.First_name == "Лев" && a.Last_name == "Толстой" {
+				author = &a
+				logg.Info("Found existing author", zap.Int("id", author.ID), zap.String("name", author.First_name+" "+author.Last_name))
+				break
+			}
+		}
+		if author == nil {
+			logg.Fatal("Cannot get or create author")
+		}
 	} else {
-		logg.Info("CreateAuthor success", zap.Int("id", author.ID), zap.String("name", author.First_name+" "+author.Last_name))
+		logg.Info("Author created successfully", zap.Int("id", author.ID), zap.String("name", author.First_name+" "+author.Last_name))
 	}
 
 	publisher, err := publisherService.CreatePublisher(ctx, conn, &domain.Publisher{
@@ -129,19 +140,47 @@ func main() {
 		Phone:   "+7 (495) 123-45-67",
 	})
 	if err != nil {
-		logg.Error("CreatePublisher error", zap.Error(err))
+		logg.Warn("CreatePublisher error (may already exist)", zap.Error(err))
+		publishers, _, _ := publisherService.ListPublishers(ctx, conn, 10, 0)
+		for _, p := range publishers {
+			if p.Name == "АСТ" {
+				publisher = &p
+				logg.Info("Found existing publisher", zap.Int("id", publisher.ID), zap.String("name", publisher.Name))
+				break
+			}
+		}
+		if publisher == nil {
+			logg.Fatal("Cannot get or create publisher")
+		}
 	} else {
-		logg.Info("CreatePublisher success", zap.Int("id", publisher.ID), zap.String("name", publisher.Name))
+		logg.Info("Publisher created successfully", zap.Int("id", publisher.ID), zap.String("name", publisher.Name))
 	}
 
 	genre, err := genreService.CreateGenre(ctx, conn, domain.Genre{
 		Name: "Роман",
 	})
 	if err != nil {
-		logg.Error("CreateGenre error", zap.Error(err))
+		logg.Warn("CreateGenre error (may already exist)", zap.Error(err))
+		genres, _ := genreService.ListGenres(ctx, conn, 10, 0)
+		for _, g := range genres {
+			if g.Name == "Роман" {
+				genre = &g
+				logg.Info("Found existing genre", zap.Int("id", genre.ID), zap.String("name", genre.Name))
+				break
+			}
+		}
+		if genre == nil {
+			logg.Fatal("Cannot get or create genre")
+		}
 	} else {
-		logg.Info("CreateGenre success", zap.Int("id", genre.ID), zap.String("name", genre.Name))
+		logg.Info("Genre created successfully", zap.Int("id", genre.ID), zap.String("name", genre.Name))
 	}
+
+	logg.Info("Creating book",
+		zap.Int("author_id", author.ID),
+		zap.Int("publisher_id", publisher.ID),
+		zap.Int("genre_id", genre.ID),
+	)
 
 	book, err := bookService.CreateBook(
 		ctx,
@@ -159,21 +198,27 @@ func main() {
 	)
 	if err != nil {
 		logg.Error("CreateBook error", zap.Error(err))
+		book, err = bookService.GetBookByISBN(ctx, conn, "978-5-17-118421-5")
+		if err != nil {
+			logg.Error("Cannot get or create book", zap.Error(err))
+		} else {
+			logg.Info("Found existing book", zap.Int("id", book.ID), zap.String("title", book.Title))
+		}
 	} else {
-		logg.Info("CreateBook success", zap.Int("id", book.ID), zap.String("title", book.Title))
+		logg.Info("Book created successfully", zap.Int("id", book.ID), zap.String("title", book.Title))
 	}
 
 	if book != nil {
 		err = bookService.AddCopyToBook(ctx, conn, book.ID, "good")
 		if err != nil {
-			logg.Error("AddCopyToBook error", zap.Int("book_id", book.ID), zap.Error(err))
+			logg.Debug("AddCopyToBook (good) error (may already exist)", zap.Int("book_id", book.ID), zap.Error(err))
 		} else {
 			logg.Info("AddCopyToBook success", zap.Int("book_id", book.ID), zap.String("condition", "good"))
 		}
 
 		err = bookService.AddCopyToBook(ctx, conn, book.ID, "excellent")
 		if err != nil {
-			logg.Error("AddCopyToBook error", zap.Int("book_id", book.ID), zap.Error(err))
+			logg.Debug("AddCopyToBook (excellent) error (may already exist)", zap.Int("book_id", book.ID), zap.Error(err))
 		} else {
 			logg.Info("AddCopyToBook success", zap.Int("book_id", book.ID), zap.String("condition", "excellent"))
 		}
@@ -226,9 +271,15 @@ func main() {
 		MaxBooks: 5,
 	}, "secure_password123")
 	if err != nil {
-		logg.Error("CreateReader error", zap.Error(err))
+		logg.Warn("CreateReader error (may already exist)", zap.Error(err))
+		reader, err = readerService.GetByEmail(ctx, conn, "ivan@example.com")
+		if err != nil {
+			logg.Error("Cannot get or create reader", zap.Error(err))
+		} else {
+			logg.Info("Found existing reader", zap.Int("id", reader.Id), zap.String("name", reader.Name))
+		}
 	} else {
-		logg.Info("CreateReader success", zap.Int("id", reader.Id), zap.String("name", reader.Name))
+		logg.Info("Reader created successfully", zap.Int("id", reader.Id), zap.String("name", reader.Name))
 	}
 
 	if book != nil && reader != nil {
@@ -244,7 +295,7 @@ func main() {
 				time.Now().AddDate(0, 0, 14),
 			)
 			if err != nil {
-				logg.Error("BorrowBook error", zap.Error(err))
+				logg.Debug("BorrowBook error (may already borrowed)", zap.Error(err))
 			} else {
 				logg.Info("BorrowBook success", zap.Int("transaction_id", transaction.ID), zap.Int("copy_id", copies[0].ID))
 			}
@@ -269,7 +320,7 @@ func main() {
 		} else if len(copies) > 0 {
 			err = reservationService.ReserveBook(ctx, conn, copies[0].ID, reader.Id)
 			if err != nil {
-				logg.Error("ReserveBook error", zap.Error(err))
+				logg.Debug("ReserveBook error (may already reserved)", zap.Error(err))
 			} else {
 				logg.Info("ReserveBook success", zap.Int("copy_id", copies[0].ID), zap.Int("reader_id", reader.Id))
 			}
@@ -286,7 +337,7 @@ func main() {
 			Comment:  "Отличная книга!",
 		})
 		if err != nil {
-			logg.Error("CreateReview error", zap.Error(err))
+			logg.Debug("CreateReview error (may already exist)", zap.Error(err))
 		} else {
 			logg.Info("CreateReview success", zap.Int("book_id", review.BookID), zap.Float64("rating", review.Rating))
 		}
@@ -307,7 +358,7 @@ func main() {
 		Description: "Штраф за просрочку",
 	})
 	if err != nil {
-		logg.Error("CreateSetting error", zap.Error(err))
+		logg.Debug("CreateSetting error (may already exist)", zap.Error(err))
 	} else {
 		logg.Info("CreateSetting success", zap.String("key", setting.Key), zap.String("value", setting.Value))
 	}
@@ -362,7 +413,7 @@ func main() {
 		} else if len(reviews) > 0 {
 			err = reviewService.DeleteReview(ctx, conn, reviews[0].ID, reader.Id)
 			if err != nil {
-				logg.Error("DeleteReview error", zap.Int("review_id", reviews[0].ID), zap.Error(err))
+				logg.Debug("DeleteReview error", zap.Int("review_id", reviews[0].ID), zap.Error(err))
 			} else {
 				logg.Info("DeleteReview success", zap.Int("review_id", reviews[0].ID))
 			}

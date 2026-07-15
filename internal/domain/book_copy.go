@@ -16,7 +16,7 @@ type BookCopy struct {
 	BorrowedAt *time.Time `json:"borrowed_at,omitempty"`
 }
 
-func NewBookCopy(bookID int, copyNumber int, condition string) *BookCopy {
+func NewBookCopy(bookID int, title string, copyNumber int, condition string) *BookCopy {
 	return &BookCopy{
 		BookID:     bookID,
 		CopyNumber: copyNumber,

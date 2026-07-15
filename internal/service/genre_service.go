@@ -39,6 +39,7 @@ func (g *GenreService) CreateGenre(ctx context.Context, conn *pgx.Conn, genre do
 			Message: "Ошибка валидации данных" + err.Error(),
 		}
 	}
+
 	exists, err := g.genreRepo.ExistsByName(ctx, conn, genre.Name)
 	if err != nil {
 		g.logger.Error("failed to check genre existence by name", zap.String("name", genre.Name), zap.Error(err))
@@ -48,7 +49,7 @@ func (g *GenreService) CreateGenre(ctx context.Context, conn *pgx.Conn, genre do
 		g.logger.Warn("genre already exists", zap.String("name", genre.Name))
 		return nil, errors.BusinessError{
 			Code:    "ErrGenreAlreadyExists",
-			Message: "Жанр с таким названием уже существует:" + err.Error(),
+			Message: fmt.Sprintf("Жанр с названием '%s' уже существует", genre.Name), // <-- ИСПРАВЛЕНО
 		}
 	}
 
