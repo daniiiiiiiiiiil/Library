@@ -8,7 +8,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateUser(ctx context.Context, conn *pgx.Conn, user domain.User) error {
+type UserRepository struct{}
+
+func (r *UserRepository) CreateUser(ctx context.Context, conn *pgx.Conn, user domain.User) error {
 	sqlQuery := `
 		INSERT INTO users (email, password_hash, role, reader_id, created_at, updated_at, last_login_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -25,7 +27,7 @@ func CreateUser(ctx context.Context, conn *pgx.Conn, user domain.User) error {
 	return err
 }
 
-func GetByIDUser(ctx context.Context, conn *pgx.Conn, id int) (domain.User, error) {
+func (r *UserRepository) GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.User, error) {
 	sqlQuery := `
 		SELECT user_id, email, password_hash, role, reader_id, created_at, updated_at, last_login_at
 		FROM users
@@ -50,7 +52,7 @@ func GetByIDUser(ctx context.Context, conn *pgx.Conn, id int) (domain.User, erro
 	return user, nil
 }
 
-func GetByEmailUser(ctx context.Context, conn *pgx.Conn, email string) (domain.User, error) {
+func (r *UserRepository) GetByEmail(ctx context.Context, conn *pgx.Conn, email string) (domain.User, error) {
 	sqlQuery := `
 		SELECT user_id, email, password_hash, role, reader_id, created_at, updated_at, last_login_at
 		FROM users
@@ -75,7 +77,7 @@ func GetByEmailUser(ctx context.Context, conn *pgx.Conn, email string) (domain.U
 	return user, nil
 }
 
-func UpdateUser(ctx context.Context, conn *pgx.Conn, user domain.User) error {
+func (r *UserRepository) Update(ctx context.Context, conn *pgx.Conn, user domain.User) error {
 	sqlQuery := `
 		UPDATE users
 		SET email = $1, role = $2, reader_id = $3, updated_at = $4
@@ -91,7 +93,7 @@ func UpdateUser(ctx context.Context, conn *pgx.Conn, user domain.User) error {
 	return err
 }
 
-func DeleteUser(ctx context.Context, conn *pgx.Conn, id int) error {
+func (r *UserRepository) Delete(ctx context.Context, conn *pgx.Conn, id int) error {
 	sqlQuery := `
 		DELETE FROM users
 		WHERE user_id = $1
@@ -100,7 +102,7 @@ func DeleteUser(ctx context.Context, conn *pgx.Conn, id int) error {
 	return err
 }
 
-func UpdatePasswordUser(ctx context.Context, conn *pgx.Conn, id int, newPasswordHash string) error {
+func (r *UserRepository) UpdatePassword(ctx context.Context, conn *pgx.Conn, id int, newPasswordHash string) error {
 	sqlQuery := `
 		UPDATE users
 		SET password_hash = $1, updated_at = $2
@@ -110,7 +112,7 @@ func UpdatePasswordUser(ctx context.Context, conn *pgx.Conn, id int, newPassword
 	return err
 }
 
-func UpdateLastLoginUser(ctx context.Context, conn *pgx.Conn, id int) error {
+func (r *UserRepository) UpdateLastLogin(ctx context.Context, conn *pgx.Conn, id int) error {
 	sqlQuery := `
 		UPDATE users
 		SET last_login_at = $1
@@ -120,7 +122,7 @@ func UpdateLastLoginUser(ctx context.Context, conn *pgx.Conn, id int) error {
 	return err
 }
 
-func DeleteByReaderID(ctx context.Context, conn *pgx.Conn, readerID int) error {
+func (r *UserRepository) DeleteByReaderID(ctx context.Context, conn *pgx.Conn, readerID int) error {
 	sqlQuery := `
         DELETE FROM users
         WHERE reader_id = $1

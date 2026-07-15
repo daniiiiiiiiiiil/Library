@@ -2,17 +2,18 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 	"library/internal/domain"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateTransaction(ctx context.Context, conn *pgx.Conn, transaction domain.Transaction) error {
+type TransactionRepository struct{}
+
+func (r *TransactionRepository) CreateTransaction(ctx context.Context, conn *pgx.Conn, transaction domain.Transaction) error {
 	sqlQuery := `
 		INSERT INTO transactions(copy_id,reader_id,borrowed_at,due_date,returned_at,status,fine,types)
-		VALUES ($1, $2, $3, $4, $5, $6, $7,$8)`
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 	_, err := conn.Exec(ctx, sqlQuery,
 		transaction.CopyID,
 		transaction.ReaderID,
@@ -25,11 +26,11 @@ func CreateTransaction(ctx context.Context, conn *pgx.Conn, transaction domain.T
 	return err
 }
 
-func GetByIdTransaction(ctx context.Context, conn *pgx.Conn, id int) (*domain.Transaction, error) {
+func (r *TransactionRepository) GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Transaction, error) {
 	sqlQuery := `
-	SELECT * 
+	SELECT transaction_id, copy_id, reader_id, borrowed_at, due_date, returned_at, status, fine, types
 	FROM transactions 
-	WHERE transaction_id=$1;`
+	WHERE transaction_id = $1`
 	var transaction domain.Transaction
 	err := conn.QueryRow(ctx, sqlQuery, id).Scan(
 		&transaction.ID,
@@ -44,11 +45,11 @@ func GetByIdTransaction(ctx context.Context, conn *pgx.Conn, id int) (*domain.Tr
 	return &transaction, err
 }
 
-func UpdateTransaction(ctx context.Context, conn *pgx.Conn, transaction domain.Transaction) error {
+func (r *TransactionRepository) Update(ctx context.Context, conn *pgx.Conn, transaction domain.Transaction) error {
 	sqlQuery := `
 		UPDATE transactions
-		SET copy_id = $1,reader_id = $2, due_date = $3,returned_at = $4,status = $5,fine = $6,types = $7
-		WHERE transaction_id = $8;`
+		SET copy_id = $1, reader_id = $2, due_date = $3, returned_at = $4, status = $5, fine = $6, types = $7
+		WHERE transaction_id = $8`
 	_, err := conn.Exec(ctx, sqlQuery,
 		transaction.CopyID,
 		transaction.ReaderID,
@@ -61,19 +62,20 @@ func UpdateTransaction(ctx context.Context, conn *pgx.Conn, transaction domain.T
 	return err
 }
 
-func ListByReader(ctx context.Context, conn *pgx.Conn, readerId int, limit, offset int) ([]domain.Transaction, error) {
+func (r *TransactionRepository) ListByReader(ctx context.Context, conn *pgx.Conn, readerID int, limit, offset int) ([]domain.Transaction, error) {
 	sqlQuery := `
-		SELECT *
+		SELECT transaction_id, copy_id, reader_id, borrowed_at, due_date, returned_at, status, fine, types
 		FROM transactions
-		WHERE reader_id=$1
-		LIMIT $2 OFFSET $3;
-		`
-	var transactions []domain.Transaction
-	rows, err := conn.Query(ctx, sqlQuery, readerId)
+		WHERE reader_id = $1
+		ORDER BY borrowed_at DESC
+		LIMIT $2 OFFSET $3`
+	rows, err := conn.Query(ctx, sqlQuery, readerID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
+	var transactions []domain.Transaction
 	for rows.Next() {
 		var transaction domain.Transaction
 		if err := rows.Scan(
@@ -89,36 +91,24 @@ func ListByReader(ctx context.Context, conn *pgx.Conn, readerId int, limit, offs
 			return nil, err
 		}
 		transactions = append(transactions, transaction)
-		printTransactions(transaction)
 	}
 	return transactions, nil
 }
 
-func printTransactions(transactions domain.Transaction) {
-	fmt.Println("----------------------------")
-	fmt.Println("ID", transactions.ID)
-	fmt.Println("CopyID", transactions.CopyID)
-	fmt.Println("ReaderID", transactions.ReaderID)
-	fmt.Println("BorrowedAt", transactions.BorrowedAt)
-	fmt.Println("DueDate", transactions.DueDate)
-	fmt.Println("ReturnedAt", transactions.ReturnedAt)
-	fmt.Println("Status", transactions.Status)
-	fmt.Println("FineAmount", transactions.FineAmount)
-	fmt.Println("Types", transactions.Types)
-}
-
-func ListByBook(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset int) ([]domain.Transaction, error) {
+func (r *TransactionRepository) ListByBook(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset int) ([]domain.Transaction, error) {
 	sqlQuery := `
-		SELECT *
+		SELECT transaction_id, copy_id, reader_id, borrowed_at, due_date, returned_at, status, fine, types
 		FROM transactions
-		WHERE copy_id=$1
-		LIMIT $2 OFFSET $3;`
-	var transactions []domain.Transaction
+		WHERE copy_id = $1
+		ORDER BY borrowed_at DESC
+		LIMIT $2 OFFSET $3`
 	rows, err := conn.Query(ctx, sqlQuery, copyID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
+	var transactions []domain.Transaction
 	for rows.Next() {
 		var transaction domain.Transaction
 		if err := rows.Scan(
@@ -134,23 +124,24 @@ func ListByBook(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset i
 			return nil, err
 		}
 		transactions = append(transactions, transaction)
-		printTransactions(transaction)
 	}
 	return transactions, nil
 }
 
-func GetActiveByReader(ctx context.Context, conn *pgx.Conn, readerId int, limit, offset int) ([]domain.Transaction, error) {
+func (r *TransactionRepository) GetActiveByReader(ctx context.Context, conn *pgx.Conn, readerID int, limit, offset int) ([]domain.Transaction, error) {
 	sqlQuery := `
-		SELECT *
+		SELECT transaction_id, copy_id, reader_id, borrowed_at, due_date, returned_at, status, fine, types
 		FROM transactions
-		WHERE reader_id=$1 AND status='active'
-		LIMIT $2 OFFSET $3;`
-	var transactions []domain.Transaction
-	rows, err := conn.Query(ctx, sqlQuery, readerId, limit, offset)
+		WHERE reader_id = $1 AND status = 'active'
+		ORDER BY borrowed_at DESC
+		LIMIT $2 OFFSET $3`
+	rows, err := conn.Query(ctx, sqlQuery, readerID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
+	var transactions []domain.Transaction
 	for rows.Next() {
 		var transaction domain.Transaction
 		if err := rows.Scan(
@@ -166,23 +157,24 @@ func GetActiveByReader(ctx context.Context, conn *pgx.Conn, readerId int, limit,
 			return nil, err
 		}
 		transactions = append(transactions, transaction)
-		printTransactions(transaction)
 	}
 	return transactions, nil
 }
 
-func GetOverdue(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Transaction, error) {
+func (r *TransactionRepository) GetOverdue(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Transaction, error) {
 	sqlQuery := `
-		SELECT *
+		SELECT transaction_id, copy_id, reader_id, borrowed_at, due_date, returned_at, status, fine, types
 		FROM transactions
-		WHERE due_date<NOW() AND status='active'
-		LIMIT $1 OFFSET $2;`
-	var transactions []domain.Transaction
+		WHERE due_date < NOW() AND status = 'active'
+		ORDER BY due_date ASC
+		LIMIT $1 OFFSET $2`
 	rows, err := conn.Query(ctx, sqlQuery, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
+	var transactions []domain.Transaction
 	for rows.Next() {
 		var transaction domain.Transaction
 		if err := rows.Scan(
@@ -198,23 +190,24 @@ func GetOverdue(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domai
 			return nil, err
 		}
 		transactions = append(transactions, transaction)
-		printTransactions(transaction)
 	}
 	return transactions, nil
 }
 
-func GetByCopyID(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset int) ([]domain.Transaction, error) {
+func (r *TransactionRepository) GetByCopyID(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset int) ([]domain.Transaction, error) {
 	sqlQuery := `
-			SELECT *
-			FROM transactions
-			WHERE copy_id=$1 AND status='active'
-			LIMIT $2 OFFSET $3;`
-	var transactions []domain.Transaction
+		SELECT transaction_id, copy_id, reader_id, borrowed_at, due_date, returned_at, status, fine, types
+		FROM transactions
+		WHERE copy_id = $1
+		ORDER BY borrowed_at DESC
+		LIMIT $2 OFFSET $3`
 	rows, err := conn.Query(ctx, sqlQuery, copyID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
+	var transactions []domain.Transaction
 	for rows.Next() {
 		var transaction domain.Transaction
 		if err := rows.Scan(
@@ -230,21 +223,20 @@ func GetByCopyID(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset 
 			return nil, err
 		}
 		transactions = append(transactions, transaction)
-		printTransactions(transaction)
 	}
 	return transactions, nil
 }
 
-func ReturnBook(ctx context.Context, conn *pgx.Conn, transactionId int, returnDate time.Time, fine float64) error {
+func (r *TransactionRepository) ReturnBook(ctx context.Context, conn *pgx.Conn, transactionID int, returnDate time.Time, fine float64) error {
 	sqlQuery := `
 		UPDATE transactions
-		SET status = 'completed',returned_at=$1,fine = $2
-		WHERE transaction_id=$3;`
-	_, err := conn.Exec(ctx, sqlQuery, returnDate, fine, transactionId)
+		SET status = 'completed', returned_at = $1, fine = $2
+		WHERE transaction_id = $3`
+	_, err := conn.Exec(ctx, sqlQuery, returnDate, fine, transactionID)
 	return err
 }
 
-func BorrowBook(ctx context.Context, conn *pgx.Conn, copyID, readerID int, dueDate time.Time) error {
+func (r *TransactionRepository) BorrowBook(ctx context.Context, conn *pgx.Conn, copyID, readerID int, dueDate time.Time) error {
 	sqlQuery := `
         INSERT INTO transactions (copy_id, reader_id, borrowed_at, due_date, returned_at, status, fine, types)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -260,25 +252,23 @@ func BorrowBook(ctx context.Context, conn *pgx.Conn, copyID, readerID int, dueDa
 		"active",
 		0,
 		"borrow")
-
 	return err
 }
 
-func CountByReader(ctx context.Context, conn *pgx.Conn, readerID int, limit, offset int) ([]domain.Transaction, int, error) {
+func (r *TransactionRepository) CountByReader(ctx context.Context, conn *pgx.Conn, readerID, limit, offset int) ([]domain.Transaction, int, error) {
 	sqlQuery := `
-        SELECT COUNT(*)
-        FROM transactions
-        WHERE reader_id = $1
-        LIMIT $2 OFFSET $3
-    `
-	var count int
-	err := conn.QueryRow(ctx, sqlQuery, readerID, limit, offset).Scan(&count)
-	var transactions []domain.Transaction
+		SELECT transaction_id, copy_id, reader_id, borrowed_at, due_date, returned_at, status, fine, types
+		FROM transactions
+		WHERE reader_id = $1
+		ORDER BY borrowed_at DESC
+		LIMIT $2 OFFSET $3`
 	rows, err := conn.Query(ctx, sqlQuery, readerID, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
+
+	var transactions []domain.Transaction
 	for rows.Next() {
 		var transaction domain.Transaction
 		if err := rows.Scan(
@@ -294,26 +284,31 @@ func CountByReader(ctx context.Context, conn *pgx.Conn, readerID int, limit, off
 			return nil, 0, err
 		}
 		transactions = append(transactions, transaction)
-		printTransactions(transaction)
 	}
-	return transactions, count, err
+
+	var count int
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM transactions WHERE reader_id = $1`, readerID).Scan(&count)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return transactions, count, nil
 }
 
-func CountByBook(ctx context.Context, conn *pgx.Conn, bookID int, limit, offset int) ([]domain.Transaction, int, error) {
+func (r *TransactionRepository) CountByBook(ctx context.Context, conn *pgx.Conn, bookID, limit, offset int) ([]domain.Transaction, int, error) {
 	sqlQuery := `
-        SELECT COUNT(*)
-        FROM transactions
-        WHERE copy_id = $1
-        LIMIT $2 OFFSET $3
-    `
-	var count int
-	err := conn.QueryRow(ctx, sqlQuery, bookID, limit, offset).Scan(&count)
-	var transactions []domain.Transaction
+		SELECT transaction_id, copy_id, reader_id, borrowed_at, due_date, returned_at, status, fine, types
+		FROM transactions
+		WHERE copy_id = $1
+		ORDER BY borrowed_at DESC
+		LIMIT $2 OFFSET $3`
 	rows, err := conn.Query(ctx, sqlQuery, bookID, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
+
+	var transactions []domain.Transaction
 	for rows.Next() {
 		var transaction domain.Transaction
 		if err := rows.Scan(
@@ -329,12 +324,18 @@ func CountByBook(ctx context.Context, conn *pgx.Conn, bookID int, limit, offset 
 			return nil, 0, err
 		}
 		transactions = append(transactions, transaction)
-		printTransactions(transaction)
 	}
-	return transactions, count, err
+
+	var count int
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM transactions WHERE copy_id = $1`, bookID).Scan(&count)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return transactions, count, nil
 }
 
-func IsTransactionActive(ctx context.Context, conn *pgx.Conn, transactionID int) (bool, error) {
+func (r *TransactionRepository) IsTransactionActive(ctx context.Context, conn *pgx.Conn, transactionID int) (bool, error) {
 	sqlQuery := `
         SELECT EXISTS (
             SELECT 1 
@@ -345,5 +346,19 @@ func IsTransactionActive(ctx context.Context, conn *pgx.Conn, transactionID int)
     `
 	var exists bool
 	err := conn.QueryRow(ctx, sqlQuery, transactionID).Scan(&exists)
+	return exists, err
+}
+
+func (r *TransactionRepository) HasReaderBorrowedBook(ctx context.Context, conn *pgx.Conn, readerID, bookID int) (bool, error) {
+	sqlQuery := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM transactions t
+			JOIN book_copies bc ON t.copy_id = bc.book_copy_id
+			WHERE t.reader_id = $1 AND bc.book_id = $2 AND t.status = 'completed'
+		)
+	`
+	var exists bool
+	err := conn.QueryRow(ctx, sqlQuery, readerID, bookID).Scan(&exists)
 	return exists, err
 }

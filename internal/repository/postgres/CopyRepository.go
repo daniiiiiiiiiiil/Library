@@ -7,10 +7,12 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateCopy(ctx context.Context, conn *pgx.Conn, bookCopy domain.BookCopy) error {
+type BookCopyRepository struct{}
+
+func (r *BookCopyRepository) CreateCopy(ctx context.Context, conn *pgx.Conn, bookCopy *domain.BookCopy) error {
 	sqlQuery := `
-INSERT INTO book_copies (book_id,copy_number,status,condition,reader_id,borrowed_at)
-VALUES ($1, $2, $3, $4, $5, $6)`
+	INSERT INTO book_copies (book_id, copy_number, status, condition, reader_id, borrowed_at)
+	VALUES ($1, $2, $3, $4, $5, $6)`
 	_, err := conn.Exec(ctx, sqlQuery,
 		bookCopy.BookID,
 		bookCopy.CopyNumber,
@@ -21,9 +23,9 @@ VALUES ($1, $2, $3, $4, $5, $6)`
 	return err
 }
 
-func GetByIDCopy(ctx context.Context, conn *pgx.Conn, id int) (domain.BookCopy, error) {
+func (r *BookCopyRepository) GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.BookCopy, error) {
 	sqlQuery := `
-	SELECT *
+	SELECT book_copy_id, book_id, copy_number, status, condition, reader_id, borrowed_at
 	FROM book_copies
 	WHERE book_copy_id = $1`
 
@@ -37,18 +39,19 @@ func GetByIDCopy(ctx context.Context, conn *pgx.Conn, id int) (domain.BookCopy, 
 		&bookCopy.ReaderID,
 		&bookCopy.BorrowedAt)
 	if err != nil {
-		return domain.BookCopy{}, err
+		return nil, err
 	}
-	return bookCopy, nil
+	return &bookCopy, nil
 }
 
-func GetCopiesByBookID(ctx context.Context, conn *pgx.Conn, id int, limit, offset int) ([]domain.BookCopy, error) {
+func (r *BookCopyRepository) GetCopiesByBookID(ctx context.Context, conn *pgx.Conn, bookID int, limit, offset int) ([]domain.BookCopy, error) {
 	sqlQuery := `
-	SELECT *
+	SELECT book_copy_id, book_id, copy_number, status, condition, reader_id, borrowed_at
 	FROM book_copies
 	WHERE book_id = $1
+	ORDER BY copy_number ASC
 	LIMIT $2 OFFSET $3`
-	rows, err := conn.Query(ctx, sqlQuery, id, limit, offset)
+	rows, err := conn.Query(ctx, sqlQuery, bookID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -71,10 +74,10 @@ func GetCopiesByBookID(ctx context.Context, conn *pgx.Conn, id int, limit, offse
 	return bookCopies, nil
 }
 
-func UpdateCopy(ctx context.Context, conn *pgx.Conn, bookCopy domain.BookCopy) error {
+func (r *BookCopyRepository) Update(ctx context.Context, conn *pgx.Conn, bookCopy domain.BookCopy) error {
 	sqlQuery := `
 	UPDATE book_copies
-	SET book_id = $1, copy_number = $2,status = $3,condition = $4,reader_id = $5,borrowed_at = $6
+	SET book_id = $1, copy_number = $2, status = $3, condition = $4, reader_id = $5, borrowed_at = $6
 	WHERE book_copy_id = $7
 `
 	_, err := conn.Exec(ctx, sqlQuery,
@@ -88,7 +91,7 @@ func UpdateCopy(ctx context.Context, conn *pgx.Conn, bookCopy domain.BookCopy) e
 	return err
 }
 
-func DeleteCopy(ctx context.Context, conn *pgx.Conn, id int) error {
+func (r *BookCopyRepository) Delete(ctx context.Context, conn *pgx.Conn, id int) error {
 	sqlQuery := `
 		DELETE FROM book_copies
 		WHERE book_copy_id = $1`
@@ -96,9 +99,9 @@ func DeleteCopy(ctx context.Context, conn *pgx.Conn, id int) error {
 	return err
 }
 
-func GetAvailableCopies(ctx context.Context, conn *pgx.Conn, bookID int) ([]domain.BookCopy, error) {
+func (r *BookCopyRepository) GetAvailable(ctx context.Context, conn *pgx.Conn, bookID int) ([]domain.BookCopy, error) {
 	sqlQuery := `
-		SELECT *
+		SELECT book_copy_id, book_id, copy_number, status, condition, reader_id, borrowed_at
 		FROM book_copies
 		WHERE status = 'available' AND book_id = $1
 		ORDER BY copy_number ASC
@@ -134,7 +137,7 @@ func GetAvailableCopies(ctx context.Context, conn *pgx.Conn, bookID int) ([]doma
 	return copies, nil
 }
 
-func UpdateStatusCopy(ctx context.Context, conn *pgx.Conn, id int, status string) error {
+func (r *BookCopyRepository) UpdateStatus(ctx context.Context, conn *pgx.Conn, id int, status string) error {
 	sqlQuery := `
 	UPDATE book_copies
 	SET status = $1
@@ -144,7 +147,7 @@ func UpdateStatusCopy(ctx context.Context, conn *pgx.Conn, id int, status string
 	return err
 }
 
-func CountAvailable(ctx context.Context, conn *pgx.Conn, bookID int) (int, error) {
+func (r *BookCopyRepository) CountAvailable(ctx context.Context, conn *pgx.Conn, bookID int) (int, error) {
 	sqlQuery := `
 		SELECT COUNT(*)
 		FROM book_copies
@@ -157,7 +160,7 @@ func CountAvailable(ctx context.Context, conn *pgx.Conn, bookID int) (int, error
 	return count, nil
 }
 
-func HasActiveCopies(ctx context.Context, conn *pgx.Conn, bookID int) (bool, error) {
+func (r *BookCopyRepository) HasActiveCopies(ctx context.Context, conn *pgx.Conn, bookID int) (bool, error) {
 	sqlQuery := `
         SELECT EXISTS (
             SELECT 1 
@@ -171,7 +174,7 @@ func HasActiveCopies(ctx context.Context, conn *pgx.Conn, bookID int) (bool, err
 	return exists, err
 }
 
-func GetNextCopyNumber(ctx context.Context, conn *pgx.Conn, bookID int) (int, error) {
+func (r *BookCopyRepository) GetNextCopyNumber(ctx context.Context, conn *pgx.Conn, bookID int) (int, error) {
 	sqlQuery := `
         SELECT COALESCE(MAX(copy_number), 0) + 1
         FROM book_copies
@@ -182,13 +185,14 @@ func GetNextCopyNumber(ctx context.Context, conn *pgx.Conn, bookID int) (int, er
 	return nextNumber, err
 }
 
-func ExistsCopy(ctx context.Context, conn *pgx.Conn, copyID int) (bool, error) {
-	sqlQuery := `SELECT EXISTS (SELECT * FROM book_copies WHERE book_copy_id = $1)`
+func (r *BookCopyRepository) ExistsCopy(ctx context.Context, conn *pgx.Conn, copyID int) (bool, error) {
+	sqlQuery := `SELECT EXISTS (SELECT 1 FROM book_copies WHERE book_copy_id = $1)`
 	var exists bool
 	err := conn.QueryRow(ctx, sqlQuery, copyID).Scan(&exists)
 	return exists, err
 }
-func CountByBookID(ctx context.Context, conn *pgx.Conn, bookID int) (int, error) {
+
+func (r *BookCopyRepository) CountByBookID(ctx context.Context, conn *pgx.Conn, bookID int) (int, error) {
 	sqlQuery := `
 		SELECT COUNT(*)
 		FROM book_copies
@@ -199,7 +203,7 @@ func CountByBookID(ctx context.Context, conn *pgx.Conn, bookID int) (int, error)
 	return count, err
 }
 
-func ClearReaderAndBorrowed(ctx context.Context, conn *pgx.Conn, id int) error {
+func (r *BookCopyRepository) ClearReaderAndBorrowed(ctx context.Context, conn *pgx.Conn, id int) error {
 	sqlQuery := `
 		UPDATE book_copies
 		SET reader_id = NULL, borrowed_at = NULL

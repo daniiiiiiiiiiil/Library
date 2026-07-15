@@ -8,7 +8,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateSetting(ctx context.Context, conn *pgx.Conn, setting domain.Setting) error {
+type SettingRepository struct{}
+
+func (r *SettingRepository) CreateSetting(ctx context.Context, conn *pgx.Conn, setting domain.Setting) error {
 	sqlQuery := `
 		INSERT INTO settings (key, value, description, updated_at)
 		VALUES ($1, $2, $3, $4)
@@ -22,7 +24,7 @@ func CreateSetting(ctx context.Context, conn *pgx.Conn, setting domain.Setting) 
 	return err
 }
 
-func GetByIDSetting(ctx context.Context, conn *pgx.Conn, id int) (domain.Setting, error) {
+func (r *SettingRepository) GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Setting, error) {
 	sqlQuery := `
 		SELECT setting_id, key, value, description, updated_at
 		FROM settings
@@ -42,7 +44,7 @@ func GetByIDSetting(ctx context.Context, conn *pgx.Conn, id int) (domain.Setting
 	return setting, nil
 }
 
-func GetByKeySetting(ctx context.Context, conn *pgx.Conn, key string) (domain.Setting, error) {
+func (r *SettingRepository) GetByKey(ctx context.Context, conn *pgx.Conn, key string) (domain.Setting, error) {
 	sqlQuery := `
 		SELECT setting_id, key, value, description, updated_at
 		FROM settings
@@ -62,7 +64,7 @@ func GetByKeySetting(ctx context.Context, conn *pgx.Conn, key string) (domain.Se
 	return setting, nil
 }
 
-func UpdateSetting(ctx context.Context, conn *pgx.Conn, setting domain.Setting) error {
+func (r *SettingRepository) Update(ctx context.Context, conn *pgx.Conn, setting domain.Setting) error {
 	sqlQuery := `
 		UPDATE settings
 		SET value = $1, description = $2, updated_at = $3
@@ -77,7 +79,7 @@ func UpdateSetting(ctx context.Context, conn *pgx.Conn, setting domain.Setting) 
 	return err
 }
 
-func UpdateSettingByKey(ctx context.Context, conn *pgx.Conn, key, value string) error {
+func (r *SettingRepository) UpdateByKey(ctx context.Context, conn *pgx.Conn, key, value string) error {
 	sqlQuery := `
 		UPDATE settings
 		SET value = $1, updated_at = $2
@@ -87,7 +89,7 @@ func UpdateSettingByKey(ctx context.Context, conn *pgx.Conn, key, value string) 
 	return err
 }
 
-func DeleteSetting(ctx context.Context, conn *pgx.Conn, id int) error {
+func (r *SettingRepository) Delete(ctx context.Context, conn *pgx.Conn, id int) error {
 	sqlQuery := `
 		DELETE FROM settings
 		WHERE setting_id = $1
@@ -96,7 +98,7 @@ func DeleteSetting(ctx context.Context, conn *pgx.Conn, id int) error {
 	return err
 }
 
-func DeleteSettingByKey(ctx context.Context, conn *pgx.Conn, key string) error {
+func (r *SettingRepository) DeleteByKey(ctx context.Context, conn *pgx.Conn, key string) error {
 	sqlQuery := `
 		DELETE FROM settings
 		WHERE key = $1
@@ -105,7 +107,7 @@ func DeleteSettingByKey(ctx context.Context, conn *pgx.Conn, key string) error {
 	return err
 }
 
-func ListSettings(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Setting, error) {
+func (r *SettingRepository) List(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Setting, error) {
 	sqlQuery := `
 		SELECT setting_id, key, value, description, updated_at
 		FROM settings
@@ -135,7 +137,7 @@ func ListSettings(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]dom
 	return settings, nil
 }
 
-func ExistsSetting(ctx context.Context, conn *pgx.Conn, key string) (bool, error) {
+func (r *SettingRepository) Exists(ctx context.Context, conn *pgx.Conn, key string) (bool, error) {
 	sqlQuery := `SELECT EXISTS (SELECT 1 FROM settings WHERE key = $1)`
 	var exists bool
 	err := conn.QueryRow(ctx, sqlQuery, key).Scan(&exists)

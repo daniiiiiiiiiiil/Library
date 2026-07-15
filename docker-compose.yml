@@ -4,7 +4,7 @@ services:
     container_name: postgres-db
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: dani123l-
+      POSTGRES_PASSWORD: dani123l
       POSTGRES_DB: appdb
     ports:
       - "5432:5432"
@@ -28,5 +28,5 @@ services:
       DB_HOST: postgres-db
       DB_PORT: "5432"
       DB_USER: postgres
-      DB_PASSWORD: dani123l-
-      DB_NAME: appdb
+      DB_PASSWORD: dani123l
+      DB_NAME: library

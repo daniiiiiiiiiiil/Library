@@ -7,6 +7,6 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o /app/exe ./cmd/app
+RUN go build -o /app/exe ./cmd/app/main.go
 
 CMD ["/app/exe"]

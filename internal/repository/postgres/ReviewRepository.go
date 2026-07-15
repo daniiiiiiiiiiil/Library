@@ -9,7 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateReview(ctx context.Context, conn *pgx.Conn, review domain.Review) error {
+type ReviewRepository struct{}
+
+func (r *ReviewRepository) CreateReview(ctx context.Context, conn *pgx.Conn, review domain.Review) (*domain.Review, error) {
 	sqlQuery := `
 		INSERT INTO reviews (book_id, reader_id, rating, comment, created_at)
 		VALUES ($1, $2, $3, $4, $5)
@@ -21,10 +23,10 @@ func CreateReview(ctx context.Context, conn *pgx.Conn, review domain.Review) err
 		review.Comment,
 		time.Now(),
 	)
-	return err
+	return &review, err
 }
 
-func GetByIDReview(ctx context.Context, conn *pgx.Conn, id int) (domain.Review, error) {
+func (r *ReviewRepository) GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Review, error) {
 	sqlQuery := `
 		SELECT review_id, book_id, reader_id, rating, comment, created_at, updated_at
 		FROM reviews
@@ -46,7 +48,7 @@ func GetByIDReview(ctx context.Context, conn *pgx.Conn, id int) (domain.Review, 
 	return review, nil
 }
 
-func UpdateReview(ctx context.Context, conn *pgx.Conn, review domain.Review) error {
+func (r *ReviewRepository) Update(ctx context.Context, conn *pgx.Conn, review domain.Review) error {
 	sqlQuery := `
 		UPDATE reviews
 		SET rating = $1, comment = $2, updated_at = $3
@@ -61,7 +63,7 @@ func UpdateReview(ctx context.Context, conn *pgx.Conn, review domain.Review) err
 	return err
 }
 
-func DeleteReview(ctx context.Context, conn *pgx.Conn, id int) error {
+func (r *ReviewRepository) Delete(ctx context.Context, conn *pgx.Conn, id int) error {
 	sqlQuery := `
 		DELETE FROM reviews
 		WHERE review_id = $1
@@ -70,7 +72,7 @@ func DeleteReview(ctx context.Context, conn *pgx.Conn, id int) error {
 	return err
 }
 
-func GetReviewsByBookID(ctx context.Context, conn *pgx.Conn, bookID int, limit, offset int) ([]domain.Review, error) {
+func (r *ReviewRepository) GetReviewsByBookID(ctx context.Context, conn *pgx.Conn, bookID int, limit, offset int) ([]domain.Review, error) {
 	sqlQuery := `
 		SELECT review_id, book_id, reader_id, rating, comment, created_at, updated_at
 		FROM reviews
@@ -103,7 +105,7 @@ func GetReviewsByBookID(ctx context.Context, conn *pgx.Conn, bookID int, limit, 
 	return reviews, nil
 }
 
-func GetReviewsByReaderID(ctx context.Context, conn *pgx.Conn, readerID int, limit, offset int) ([]domain.Review, error) {
+func (r *ReviewRepository) GetReviewsByReaderID(ctx context.Context, conn *pgx.Conn, readerID int, limit, offset int) ([]domain.Review, error) {
 	sqlQuery := `
 		SELECT review_id, book_id, reader_id, rating, comment, created_at, updated_at
 		FROM reviews
@@ -136,7 +138,7 @@ func GetReviewsByReaderID(ctx context.Context, conn *pgx.Conn, readerID int, lim
 	return reviews, nil
 }
 
-func GetAverageRating(ctx context.Context, conn *pgx.Conn, bookID int) (float64, error) {
+func (r *ReviewRepository) GetAverageRating(ctx context.Context, conn *pgx.Conn, bookID int) (float64, error) {
 	sqlQuery := `
 		SELECT COALESCE(ROUND(AVG(rating)::NUMERIC, 2), 0)
 		FROM reviews
@@ -150,7 +152,7 @@ func GetAverageRating(ctx context.Context, conn *pgx.Conn, bookID int) (float64,
 	return avgRating, nil
 }
 
-func GetReviewCount(ctx context.Context, conn *pgx.Conn, bookID int) (int, error) {
+func (r *ReviewRepository) GetReviewCount(ctx context.Context, conn *pgx.Conn, bookID int) (int, error) {
 	sqlQuery := `
 		SELECT COUNT(*)
 		FROM reviews
@@ -164,7 +166,7 @@ func GetReviewCount(ctx context.Context, conn *pgx.Conn, bookID int) (int, error
 	return count, nil
 }
 
-func ExistsReview(ctx context.Context, conn *pgx.Conn, bookID, readerID int) (bool, error) {
+func (r *ReviewRepository) Exists(ctx context.Context, conn *pgx.Conn, bookID, readerID int) (bool, error) {
 	sqlQuery := `
 		SELECT EXISTS (
 			SELECT 1 
@@ -180,7 +182,7 @@ func ExistsReview(ctx context.Context, conn *pgx.Conn, bookID, readerID int) (bo
 	return exists, nil
 }
 
-func ListReviews(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Review, error) {
+func (r *ReviewRepository) List(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Review, error) {
 	sqlQuery := `
 		SELECT review_id, book_id, reader_id, rating, comment, created_at, updated_at
 		FROM reviews
@@ -212,7 +214,7 @@ func ListReviews(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]doma
 	return reviews, nil
 }
 
-func SearchReview(ctx context.Context, conn *pgx.Conn, column, search string, limit, offset int) ([]domain.Review, int, error) {
+func (r *ReviewRepository) Search(ctx context.Context, conn *pgx.Conn, column, search string, limit, offset int) ([]domain.Review, int, error) {
 	allowedColumns := map[string]bool{
 		"comment": true,
 		"rating":  true,

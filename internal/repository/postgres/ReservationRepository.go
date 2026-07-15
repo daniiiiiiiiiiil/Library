@@ -7,7 +7,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateReservation(ctx context.Context, conn *pgx.Conn, reserv *domain.Reservation) error {
+type ReservationRepository struct{}
+
+func (r *ReservationRepository) CreateReservation(ctx context.Context, conn *pgx.Conn, reserv *domain.Reservation) error {
 	sqlQuery := `
 	INSERT INTO reservations (copy_id,reader_id,reserved_at,expires_at,status)
 	VALUES ($1,$2,$3,$4,$5)
@@ -21,9 +23,9 @@ func CreateReservation(ctx context.Context, conn *pgx.Conn, reserv *domain.Reser
 	return err
 }
 
-func GetByIDReservation(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reservation, error) {
+func (r *ReservationRepository) GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reservation, error) {
 	sqlQuery := `
-	SELECT *
+	SELECT reservation_id, copy_id, reader_id, reserved_at, expires_at, status
 	FROM reservations
 	WHERE reservation_id = $1
 `
@@ -40,14 +42,14 @@ func GetByIDReservation(ctx context.Context, conn *pgx.Conn, id int) (*domain.Re
 	return &reserve, nil
 }
 
-func GetActiveByReaderReserv(ctx context.Context, conn *pgx.Conn, readerId int, limit, offset int) ([]domain.Reservation, error) {
+func (r *ReservationRepository) GetActiveByReader(ctx context.Context, conn *pgx.Conn, readerID int, limit, offset int) ([]domain.Reservation, error) {
 	sqlQuery := `
-	SELECT *
+	SELECT reservation_id, copy_id, reader_id, reserved_at, expires_at, status
 	FROM reservations
 	WHERE reader_id = $1 AND status = 'active'
 	LIMIT $2 OFFSET $3
 `
-	rows, err := conn.Query(ctx, sqlQuery, readerId, limit, offset)
+	rows, err := conn.Query(ctx, sqlQuery, readerID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +71,9 @@ func GetActiveByReaderReserv(ctx context.Context, conn *pgx.Conn, readerId int, 
 	return reservations, nil
 }
 
-func GetActiveByBookReserv(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset int) ([]domain.Reservation, error) {
+func (r *ReservationRepository) GetActiveByCopy(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset int) ([]domain.Reservation, error) {
 	sqlQuery := `
-	SELECT *
+	SELECT reservation_id, copy_id, reader_id, reserved_at, expires_at, status
 	FROM reservations
 	WHERE copy_id = $1 AND status = 'active'
 	LIMIT $2 OFFSET $3
@@ -98,17 +100,17 @@ func GetActiveByBookReserv(ctx context.Context, conn *pgx.Conn, copyID int, limi
 	return reservations, nil
 }
 
-func UpdateStatus(ctx context.Context, conn *pgx.Conn, id int, newStatus string) error {
+func (r *ReservationRepository) UpdateStatus(ctx context.Context, conn *pgx.Conn, id int, status string) error {
 	sqlQuery := `
 	UPDATE reservations
 	SET status = $1
 	WHERE reservation_id = $2
 `
-	_, err := conn.Exec(ctx, sqlQuery, newStatus, id)
+	_, err := conn.Exec(ctx, sqlQuery, status, id)
 	return err
 }
 
-func DeleteReservation(ctx context.Context, conn *pgx.Conn, id int) error {
+func (r *ReservationRepository) Delete(ctx context.Context, conn *pgx.Conn, id int) error {
 	sqlQuery := `
 	DELETE FROM reservations
 	WHERE reservation_id = $1
@@ -117,11 +119,11 @@ func DeleteReservation(ctx context.Context, conn *pgx.Conn, id int) error {
 	return err
 }
 
-func GetExpiredReserv(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reservation, error) {
+func (r *ReservationRepository) GetExpired(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reservation, error) {
 	sqlQuery := `
-	SELECT *
+	SELECT reservation_id, copy_id, reader_id, reserved_at, expires_at, status
 	FROM reservations
-	WHERE expires_at < NOW() 
+	WHERE expires_at < NOW() AND status = 'active'
 	LIMIT $1 OFFSET $2
 `
 	rows, err := conn.Query(ctx, sqlQuery, limit, offset)
@@ -146,7 +148,7 @@ func GetExpiredReserv(ctx context.Context, conn *pgx.Conn, limit, offset int) ([
 	return reservations, nil
 }
 
-func IsBookReservedByOther(ctx context.Context, conn *pgx.Conn, copyID, readerID int) (bool, error) {
+func (r *ReservationRepository) IsBookReservedByOther(ctx context.Context, conn *pgx.Conn, copyID, readerID int) (bool, error) {
 	sqlQuery := `
 		SELECT EXISTS (
 			SELECT 1
@@ -161,7 +163,7 @@ func IsBookReservedByOther(ctx context.Context, conn *pgx.Conn, copyID, readerID
 	return exists, err
 }
 
-func HasActiveForCopy(ctx context.Context, conn *pgx.Conn, copyID int) (bool, error) {
+func (r *ReservationRepository) HasActiveForCopy(ctx context.Context, conn *pgx.Conn, copyID int) (bool, error) {
 	sqlQuery := `
 		SELECT EXISTS (
 			SELECT 1

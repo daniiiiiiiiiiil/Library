@@ -7,7 +7,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateAuditLog(ctx context.Context, conn *pgx.Conn, log AuditLog) error {
+type AuditLogRepository struct{}
+
+func (r *AuditLogRepository) CreateAuditLog(ctx context.Context, conn *pgx.Conn, log AuditLog) error {
 	sqlQuery := `
 		INSERT INTO audit_log (user_id, action, entity_type, entity_id, log_timestamp)
 		VALUES ($1, $2, $3, $4, $5)
@@ -22,7 +24,7 @@ func CreateAuditLog(ctx context.Context, conn *pgx.Conn, log AuditLog) error {
 	return err
 }
 
-func GetByIDAuditLog(ctx context.Context, conn *pgx.Conn, id int) (AuditLog, error) {
+func (r *AuditLogRepository) GetByID(ctx context.Context, conn *pgx.Conn, id int) (AuditLog, error) {
 	sqlQuery := `
 		SELECT audit_log_id, user_id, action, entity_type, entity_id, log_timestamp
 		FROM audit_log
@@ -43,7 +45,7 @@ func GetByIDAuditLog(ctx context.Context, conn *pgx.Conn, id int) (AuditLog, err
 	return log, nil
 }
 
-func ListAuditLogs(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]AuditLog, error) {
+func (r *AuditLogRepository) List(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]AuditLog, error) {
 	sqlQuery := `
 		SELECT audit_log_id, user_id, action, entity_type, entity_id, log_timestamp
 		FROM audit_log
@@ -74,7 +76,7 @@ func ListAuditLogs(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]Au
 	return logs, nil
 }
 
-func GetAuditLogsByEntity(ctx context.Context, conn *pgx.Conn, entityType string, entityID int, limit, offset int) ([]AuditLog, error) {
+func (r *AuditLogRepository) GetByEntity(ctx context.Context, conn *pgx.Conn, entityType string, entityID int, limit, offset int) ([]AuditLog, error) {
 	sqlQuery := `
 		SELECT audit_log_id, user_id, action, entity_type, entity_id, log_timestamp
 		FROM audit_log
@@ -106,7 +108,7 @@ func GetAuditLogsByEntity(ctx context.Context, conn *pgx.Conn, entityType string
 	return logs, nil
 }
 
-func GetAuditLogsByUser(ctx context.Context, conn *pgx.Conn, userID int, limit, offset int) ([]AuditLog, error) {
+func (r *AuditLogRepository) GetByUser(ctx context.Context, conn *pgx.Conn, userID int, limit, offset int) ([]AuditLog, error) {
 	sqlQuery := `
 		SELECT audit_log_id, user_id, action, entity_type, entity_id, log_timestamp
 		FROM audit_log
@@ -138,7 +140,7 @@ func GetAuditLogsByUser(ctx context.Context, conn *pgx.Conn, userID int, limit, 
 	return logs, nil
 }
 
-func GetAuditLogsByAction(ctx context.Context, conn *pgx.Conn, action string, limit, offset int) ([]AuditLog, error) {
+func (r *AuditLogRepository) GetByAction(ctx context.Context, conn *pgx.Conn, action string, limit, offset int) ([]AuditLog, error) {
 	sqlQuery := `
 		SELECT audit_log_id, user_id, action, entity_type, entity_id, log_timestamp
 		FROM audit_log

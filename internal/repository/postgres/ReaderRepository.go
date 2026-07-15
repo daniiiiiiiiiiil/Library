@@ -2,14 +2,15 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 	"library/internal/domain"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 )
 
-func CreateReader(ctx context.Context, conn *pgx.Conn, reader *domain.Reader) (*domain.Reader, error) {
+type ReaderRepository struct{}
+
+func (r *ReaderRepository) CreateReader(ctx context.Context, conn *pgx.Conn, reader *domain.Reader) (*domain.Reader, error) {
 	sqlQuery := `
 		INSERT INTO readers (name, phone, email, registered_at, status, max_books, books_count)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -33,14 +34,14 @@ func CreateReader(ctx context.Context, conn *pgx.Conn, reader *domain.Reader) (*
 	return reader, nil
 }
 
-func GetByIDReader(ctx context.Context, conn *pgx.Conn, bookID int) (*domain.Reader, error) {
+func (r *ReaderRepository) GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reader, error) {
 	sqlQuery := `
-		SELECT *
+		SELECT reader_id, name, phone, email, registered_at, status, max_books, books_count
 		FROM readers
 		WHERE reader_id = $1
-`
+	`
 	var reader domain.Reader
-	err := conn.QueryRow(ctx, sqlQuery, bookID).Scan(
+	err := conn.QueryRow(ctx, sqlQuery, id).Scan(
 		&reader.Id,
 		&reader.Name,
 		&reader.Phone,
@@ -48,15 +49,20 @@ func GetByIDReader(ctx context.Context, conn *pgx.Conn, bookID int) (*domain.Rea
 		&reader.RegisteredAt,
 		&reader.Status,
 		&reader.MaxBooks,
-		&reader.BooksCount)
-	return &reader, err
+		&reader.BooksCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &reader, nil
 }
 
-func GetByEmailReader(ctx context.Context, conn *pgx.Conn, email string) (*domain.Reader, error) {
+func (r *ReaderRepository) GetByEmail(ctx context.Context, conn *pgx.Conn, email string) (*domain.Reader, error) {
 	sqlQuery := `
-		SELECT *
+		SELECT reader_id, name, phone, email, registered_at, status, max_books, books_count
 		FROM readers
-		WHERE email = $1`
+		WHERE email = $1
+	`
 	var reader domain.Reader
 	err := conn.QueryRow(ctx, sqlQuery, email).Scan(
 		&reader.Id,
@@ -66,83 +72,54 @@ func GetByEmailReader(ctx context.Context, conn *pgx.Conn, email string) (*domai
 		&reader.RegisteredAt,
 		&reader.Status,
 		&reader.MaxBooks,
-		&reader.BooksCount)
-	return &reader, err
+		&reader.BooksCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &reader, nil
 }
 
-func UpdateReader(ctx context.Context, conn *pgx.Conn, bookID int, r domain.Reader) error {
+func (r *ReaderRepository) Update(ctx context.Context, conn *pgx.Conn, id int, reader domain.Reader) error {
 	sqlQuery := `
-			UPDATE readers
-			SET name = $1,phone = $2,email = $3
-			WHERE reader_id = $4`
-	_, err := conn.Exec(ctx, sqlQuery, r.Name, r.Phone, r.Email, bookID)
+		UPDATE readers
+		SET name = $1, phone = $2, email = $3, status = $4, max_books = $5, books_count = $6
+		WHERE reader_id = $7
+	`
+	_, err := conn.Exec(ctx, sqlQuery,
+		reader.Name,
+		reader.Phone,
+		reader.Email,
+		reader.Status,
+		reader.MaxBooks,
+		reader.BooksCount,
+		id,
+	)
 	return err
 }
 
-func DeleteReader(ctx context.Context, conn *pgx.Conn, bookID int) error {
+func (r *ReaderRepository) Delete(ctx context.Context, conn *pgx.Conn, id int) error {
 	sqlQuery := `
 		DELETE FROM readers
-		WHERE reader_id = $1`
-	_, err := conn.Exec(ctx, sqlQuery, bookID)
+		WHERE reader_id = $1
+	`
+	_, err := conn.Exec(ctx, sqlQuery, id)
 	return err
 }
 
-func ListReaders(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error) {
+func (r *ReaderRepository) List(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error) {
 	sqlQuery := `
-		SELECT *
+		SELECT reader_id, name, phone, email, registered_at, status, max_books, books_count
 		FROM readers
 		ORDER BY name ASC
-		LIMIT $1 OFFSET $2;
-		`
-	var readers []domain.Reader
+		LIMIT $1 OFFSET $2
+	`
 	rows, err := conn.Query(ctx, sqlQuery, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	for rows.Next() {
-		var reader domain.Reader
-		if err := rows.Scan(
-			&reader.Id,
-			&reader.Name,
-			&reader.Phone,
-			&reader.Email,
-			&reader.RegisteredAt,
-			&reader.Status,
-			&reader.MaxBooks,
-			&reader.BooksCount); err != nil {
-			return nil, err
-		}
-		readers = append(readers, reader)
-		printReader(reader)
-	}
-	return readers, nil
-}
 
-func printReader(readers domain.Reader) {
-	fmt.Println("--------------------------------------------------")
-	fmt.Println("ID:", readers.Id)
-	fmt.Println("Name:", readers.Name)
-	fmt.Println("Phone:", readers.Phone)
-	fmt.Println("Email:", readers.Email)
-	fmt.Println("RegisteredAt:", readers.RegisteredAt)
-	fmt.Println("Status:", readers.Status)
-	fmt.Println("Max Books:", readers.MaxBooks)
-	fmt.Println("Books Count:", readers.BooksCount)
-}
-
-func GetActive(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error) {
-	sqlQuery := `
-		SELECT *
-		FROM readers
-		WHERE status = 'active'
-		ORDER BY name ASC
-		LIMIT $1 OFFSET $2;`
-	rows, err := conn.Query(ctx, sqlQuery, limit, offset)
-	if err != nil {
-		return []domain.Reader{}, err
-	}
-	defer rows.Close()
 	var readers []domain.Reader
 	for rows.Next() {
 		var reader domain.Reader
@@ -154,101 +131,155 @@ func GetActive(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain
 			&reader.RegisteredAt,
 			&reader.Status,
 			&reader.MaxBooks,
-			&reader.BooksCount); err != nil {
-			return []domain.Reader{}, err
+			&reader.BooksCount,
+		); err != nil {
+			return nil, err
 		}
 		readers = append(readers, reader)
-		printReader(reader)
 	}
 	return readers, nil
 }
 
-func GetDebtors(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error) {
+func (r *ReaderRepository) GetActive(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error) {
+	sqlQuery := `
+		SELECT reader_id, name, phone, email, registered_at, status, max_books, books_count
+		FROM readers
+		WHERE status = 'active'
+		ORDER BY name ASC
+		LIMIT $1 OFFSET $2
+	`
+	rows, err := conn.Query(ctx, sqlQuery, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var readers []domain.Reader
+	for rows.Next() {
+		var reader domain.Reader
+		if err := rows.Scan(
+			&reader.Id,
+			&reader.Name,
+			&reader.Phone,
+			&reader.Email,
+			&reader.RegisteredAt,
+			&reader.Status,
+			&reader.MaxBooks,
+			&reader.BooksCount,
+		); err != nil {
+			return nil, err
+		}
+		readers = append(readers, reader)
+	}
+	return readers, nil
+}
+
+func (r *ReaderRepository) GetDebtors(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error) {
 	sqlQuery := `
 		SELECT DISTINCT
 			r.reader_id,
 			r.name,
 			r.phone,
-			r.email
+			r.email,
+			r.registered_at,
+			r.status,
+			r.max_books,
+			r.books_count
 		FROM readers r
 		JOIN transactions t ON r.reader_id = t.reader_id
 		WHERE t.status = 'active' 
 		  AND t.due_date < CURRENT_DATE
-		GROUP BY r.reader_id, r.name, r.phone, r.email
-		LIMIT $1 OFFSET $2;`
+		ORDER BY r.name ASC
+		LIMIT $1 OFFSET $2
+	`
 	rows, err := conn.Query(ctx, sqlQuery, limit, offset)
 	if err != nil {
-		return []domain.Reader{}, err
+		return nil, err
 	}
 	defer rows.Close()
+
 	var readers []domain.Reader
 	for rows.Next() {
 		var reader domain.Reader
-		if err := rows.Scan(&reader.Id,
+		if err := rows.Scan(
+			&reader.Id,
 			&reader.Name,
 			&reader.Phone,
 			&reader.Email,
 			&reader.RegisteredAt,
 			&reader.Status,
 			&reader.MaxBooks,
-			&reader.BooksCount); err != nil {
+			&reader.BooksCount,
+		); err != nil {
 			return nil, err
 		}
 		readers = append(readers, reader)
-		printReader(reader)
 	}
 	return readers, nil
 }
 
-func BlockReader(ctx context.Context, conn *pgx.Conn, readerId int) error {
+func (r *ReaderRepository) BlockReader(ctx context.Context, conn *pgx.Conn, readerID int) error {
 	sqlQuery := `
-	UPDATE readers
-	SET status = 'blocked'
-	WHERE reader_id = $1
-`
-	_, err := conn.Exec(ctx, sqlQuery, readerId)
+		UPDATE readers
+		SET status = 'blocked'
+		WHERE reader_id = $1
+	`
+	_, err := conn.Exec(ctx, sqlQuery, readerID)
 	return err
 }
 
-func UnBlockReader(ctx context.Context, conn *pgx.Conn, readerId int) error {
+func (r *ReaderRepository) UnBlockReader(ctx context.Context, conn *pgx.Conn, readerID int) error {
 	sqlQuery := `
-	UPDATE readers
-	SET status = 'active'
-	WHERE reader_id = $1
-`
-	_, err := conn.Exec(ctx, sqlQuery, readerId)
+		UPDATE readers
+		SET status = 'active'
+		WHERE reader_id = $1
+	`
+	_, err := conn.Exec(ctx, sqlQuery, readerID)
 	return err
 }
 
-func IncrementBookCount(ctx context.Context, conn *pgx.Conn, readerId int) error {
+func (r *ReaderRepository) IncrementBookCount(ctx context.Context, conn *pgx.Conn, readerID int) error {
 	sqlQuery := `
 		UPDATE readers
 		SET books_count = books_count + 1
-		WHERE reader_id = $1`
-	_, err := conn.Exec(ctx, sqlQuery, readerId)
+		WHERE reader_id = $1
+	`
+	_, err := conn.Exec(ctx, sqlQuery, readerID)
 	return err
 }
 
-func DecrementBookCount(ctx context.Context, conn *pgx.Conn, readerId int) error {
+func (r *ReaderRepository) DecrementBookCount(ctx context.Context, conn *pgx.Conn, readerID int) error {
 	sqlQuery := `
 		UPDATE readers
 		SET books_count = books_count - 1
-		WHERE reader_id = $1`
-	_, err := conn.Exec(ctx, sqlQuery, readerId)
+		WHERE reader_id = $1
+	`
+	_, err := conn.Exec(ctx, sqlQuery, readerID)
 	return err
 }
 
-func UpdateStatusReader(ctx context.Context, conn *pgx.Conn, readerID int, r domain.Reader) error {
+func (r *ReaderRepository) UpdateStatus(ctx context.Context, conn *pgx.Conn, readerID int, reader domain.Reader) error {
 	sqlQuery := `
 		UPDATE readers
 		SET status = $1
-		WHERE reader_id = $2`
-	_, err := conn.Exec(ctx, sqlQuery, r.Status, readerID)
+		WHERE reader_id = $2
+	`
+	_, err := conn.Exec(ctx, sqlQuery, reader.Status, readerID)
 	return err
 }
 
-func ExistsEmail(ctx context.Context, conn *pgx.Conn, email string) (bool, error) {
-	sqlQuery := `SELECT EXISTS (SELECT * FROM readers WHERE email = $1)`
+func (r *ReaderRepository) Exists(ctx context.Context, conn *pgx.Conn, id int) (bool, error) {
+	sqlQuery := `SELECT EXISTS (SELECT 1 FROM readers WHERE reader_id = $1)`
+	var exists bool
+	err := conn.QueryRow(ctx, sqlQuery, id).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func (r *ReaderRepository) ExistsEmail(ctx context.Context, conn *pgx.Conn, email string) (bool, error) {
+	sqlQuery := `SELECT EXISTS (SELECT 1 FROM readers WHERE email = $1)`
 	var exists bool
 	err := conn.QueryRow(ctx, sqlQuery, email).Scan(&exists)
 	if err != nil {
@@ -256,7 +287,8 @@ func ExistsEmail(ctx context.Context, conn *pgx.Conn, email string) (bool, error
 	}
 	return exists, nil
 }
-func ExistsPhone(ctx context.Context, conn *pgx.Conn, phone string) (bool, error) {
+
+func (r *ReaderRepository) ExistsPhone(ctx context.Context, conn *pgx.Conn, phone string) (bool, error) {
 	sqlQuery := `SELECT EXISTS (SELECT 1 FROM readers WHERE phone = $1)`
 	var exists bool
 	err := conn.QueryRow(ctx, sqlQuery, phone).Scan(&exists)
@@ -266,33 +298,32 @@ func ExistsPhone(ctx context.Context, conn *pgx.Conn, phone string) (bool, error
 	return exists, nil
 }
 
-func GetActiveBooksCount(ctx context.Context, conn *pgx.Conn, readerID int) (int, error) {
+func (r *ReaderRepository) GetActiveBooksCount(ctx context.Context, conn *pgx.Conn, readerID int) (int, error) {
 	sqlQuery := `
-        SELECT COUNT(*)
-        FROM transactions
-        WHERE reader_id = $1 AND status = 'active'
-    `
+		SELECT COUNT(*)
+		FROM transactions
+		WHERE reader_id = $1 AND status = 'active'
+	`
 	var count int
 	err := conn.QueryRow(ctx, sqlQuery, readerID).Scan(&count)
-	return count, err
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
-func HasDebt(ctx context.Context, conn *pgx.Conn, readerID int) (bool, error) {
+func (r *ReaderRepository) HasDebt(ctx context.Context, conn *pgx.Conn, readerID int) (bool, error) {
 	sqlQuery := `
-        SELECT EXISTS (
-            SELECT 1
-            FROM transactions
-            WHERE reader_id = $1 AND fine > 0 AND status = 'active'
-        )
-    `
+		SELECT EXISTS (
+			SELECT 1
+			FROM transactions
+			WHERE reader_id = $1 AND fine_amount > 0 AND status = 'active'
+		)
+	`
 	var exists bool
 	err := conn.QueryRow(ctx, sqlQuery, readerID).Scan(&exists)
-	return exists, err
-}
-
-func Exists(ctx context.Context, conn *pgx.Conn, id int) (bool, error) {
-	sqlQuery := `SELECT EXISTS (SELECT 1 FROM readers WHERE reader_id = $1)`
-	var exists bool
-	err := conn.QueryRow(ctx, sqlQuery, id).Scan(&exists)
-	return exists, err
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }
