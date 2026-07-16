@@ -388,3 +388,19 @@ func (r *ReviewService) UpdateBookRating(ctx context.Context, conn *pgx.Conn, bo
 	r.logger.Info("book rating updated successfully", zap.Int("book_id", bookID), zap.Float64("avg_rating", avg))
 	return nil
 }
+
+func (s *ReviewService) GetAverageRating(ctx context.Context, conn *pgx.Conn, bookID int) (float64, error) {
+	s.logger.Debug("get average rating started", zap.Int("book_id", bookID))
+
+	avgRating, err := s.reviewRepo.GetAverageRating(ctx, conn, bookID)
+	if err != nil {
+		s.logger.Error("failed to get average rating", zap.Int("book_id", bookID), zap.Error(err))
+		return 0, errors.BusinessError{
+			Code:    "ErrGetAverageRating",
+			Message: "Не удалось получить средний рейтинг: " + err.Error(),
+		}
+	}
+
+	s.logger.Debug("get average rating finished", zap.Int("book_id", bookID), zap.Float64("avg_rating", avgRating))
+	return avgRating, nil
+}

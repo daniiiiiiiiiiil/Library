@@ -3,17 +3,18 @@ package domain
 import (
 	"fmt"
 	"library/pkg/errors"
+	"time"
 )
 
 type Author struct {
-	ID         int    `json:"id"`
-	First_name string `json:"first_name"`
-	Last_name  string `json:"last_name"`
-	Biography  string `json:"biography"`
-	Birthday   string `json:"birthday"`
+	ID         int       `json:"id"`
+	First_name string    `json:"first_name"`
+	Last_name  string    `json:"last_name"`
+	Biography  string    `json:"biography"`
+	Birthday   time.Time `json:"birthday"`
 }
 
-func NewAuthor(id int, first_name string, last_name string, biography string, birthday string) Author {
+func NewAuthor(id int, first_name string, last_name string, biography string, birthday time.Time) Author {
 	return Author{
 		ID:         id,
 		First_name: first_name,

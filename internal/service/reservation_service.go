@@ -42,13 +42,27 @@ func NewReservation(
 	}
 }
 
-func (s *ReservationService) ReserveBook(ctx context.Context, conn *pgx.Conn, copyID, readerID int) error {
+type ReservationResult struct {
+	Reservation domain.Reservation
+	BookTitle   string
+	ReaderName  string
+}
+
+func NewReservationResult() *ReservationResult {
+	return &ReservationResult{
+		Reservation: domain.Reservation{},
+		BookTitle:   "",
+		ReaderName:  "",
+	}
+}
+
+func (s *ReservationService) ReserveBook(ctx context.Context, conn *pgx.Conn, copyID, readerID int) (*ReservationResult, error) {
 	s.logger.Info("reserve book started", zap.Int("copy_id", copyID), zap.Int("reader_id", readerID))
 
 	copy, err := s.copyRepo.GetByID(ctx, conn, copyID)
 	if err != nil {
 		s.logger.Error("failed to get copy", zap.Int("copy_id", copyID), zap.Error(err))
-		return errors.NotFoundError{
+		return nil, errors.NotFoundError{
 			Entity: "BookCopy",
 			ID:     copyID,
 		}
@@ -56,7 +70,7 @@ func (s *ReservationService) ReserveBook(ctx context.Context, conn *pgx.Conn, co
 
 	if copy.Status != "available" {
 		s.logger.Warn("copy not available for reservation", zap.Int("copy_id", copyID), zap.String("status", copy.Status))
-		return errors.BusinessError{
+		return nil, errors.BusinessError{
 			Code:    "ErrCopyNotAvailable",
 			Message: fmt.Sprintf("Копия книги недоступна для бронирования (статус: %s)", copy.Status),
 		}
@@ -65,47 +79,34 @@ func (s *ReservationService) ReserveBook(ctx context.Context, conn *pgx.Conn, co
 	reader, err := s.readerRepo.GetByID(ctx, conn, readerID)
 	if err != nil {
 		s.logger.Error("failed to get reader", zap.Int("reader_id", readerID), zap.Error(err))
-		return errors.NotFoundError{
+		return nil, errors.NotFoundError{
 			Entity: "Reader",
 			ID:     readerID,
 		}
 	}
+
 	if reader.Status == "blocked" {
 		s.logger.Warn("reader is blocked", zap.Int("reader_id", readerID))
-		return errors.BusinessError{
+		return nil, errors.BusinessError{
 			Code:    "ErrReaderBlocked",
 			Message: "Читатель заблокирован и не может бронировать книги",
-		}
-	}
-
-	hasActive, err := s.reservRepo.IsBookReservedByOther(ctx, conn, copyID, readerID)
-	if err != nil {
-		s.logger.Error("failed to check if book reserved by other", zap.Int("copy_id", copyID), zap.Int("reader_id", readerID), zap.Error(err))
-		return err
-	}
-	if hasActive {
-		s.logger.Warn("reader already has active reservation for this copy", zap.Int("copy_id", copyID), zap.Int("reader_id", readerID))
-		return errors.BusinessError{
-			Code:    "ErrReservationAlreadyExists",
-			Message: "У читателя уже есть активная бронь на эту книгу",
 		}
 	}
 
 	reservedByOther, err := s.reservRepo.IsBookReservedByOther(ctx, conn, copyID, readerID)
 	if err != nil {
 		s.logger.Error("failed to check if book reserved by other", zap.Int("copy_id", copyID), zap.Int("reader_id", readerID), zap.Error(err))
-		return err
+		return nil, err
 	}
 	if reservedByOther {
 		s.logger.Warn("book already reserved by other reader", zap.Int("copy_id", copyID), zap.Int("reader_id", readerID))
-		return errors.BusinessError{
+		return nil, errors.BusinessError{
 			Code:    "ErrReservedCopyByOther",
 			Message: "Книга уже зарезервирована другим читателем",
 		}
 	}
 
 	reservationDuration := 24 * time.Hour
-
 	reservation := domain.NewReservation(
 		copyID,
 		readerID,
@@ -114,30 +115,47 @@ func (s *ReservationService) ReserveBook(ctx context.Context, conn *pgx.Conn, co
 
 	if err := reservation.Validate(); err != nil {
 		s.logger.Warn("reservation validation failed", zap.Int("copy_id", copyID), zap.Int("reader_id", readerID), zap.Error(err))
-		return errors.ValidationError{
+		return nil, errors.ValidationError{
 			Field:   err.Error(),
 			Message: "Ошибка валидации брони: " + err.Error(),
 		}
 	}
 
-	if err := s.reservRepo.CreateReservation(ctx, conn, &reservation); err != nil {
+	created, err := s.reservRepo.CreateReservation(ctx, conn, &reservation)
+	if err != nil {
 		s.logger.Error("failed to create reservation", zap.Int("copy_id", copyID), zap.Int("reader_id", readerID), zap.Error(err))
-		return errors.BusinessError{
+		return nil, errors.BusinessError{
 			Code:    "ErrCreateReservation",
 			Message: "Не удалось создать бронь: " + err.Error(),
 		}
 	}
 
-	if err := s.copyRepo.UpdateStatus(ctx, conn, copyID, "reserved"); err != nil {
+	_, err = s.copyRepo.UpdateStatus(ctx, conn, copyID, "reserved")
+	if err != nil {
 		s.logger.Error("failed to update copy status to reserved", zap.Int("copy_id", copyID), zap.Error(err))
-		return errors.BusinessError{
+		return nil, errors.BusinessError{
 			Code:    "ErrReservationUpdatedStatus",
 			Message: "Не удалось обновить статус копии: " + err.Error(),
 		}
 	}
 
-	s.logger.Info("book reserved successfully", zap.Int("copy_id", copyID), zap.Int("reader_id", readerID), zap.Time("expires_at", reservation.ExpiresAt))
-	return nil
+	book, err := s.bookRepo.GetByID(ctx, conn, copy.BookID)
+	if err != nil {
+		s.logger.Error("failed to get book for reservation response", zap.Int("book_id", copy.BookID), zap.Error(err))
+		book.Title = "" // Не фатально, возвращаем пустую строку
+	}
+
+	s.logger.Info("book reserved successfully",
+		zap.Int("copy_id", copyID),
+		zap.Int("reader_id", readerID),
+		zap.Time("expires_at", reservation.ExpiresAt),
+	)
+
+	return &ReservationResult{
+		Reservation: *created,
+		BookTitle:   book.Title,
+		ReaderName:  reader.Name,
+	}, nil
 }
 
 func (r *ReservationService) CancelReservation(ctx context.Context, conn *pgx.Conn, reservationID int) error {
@@ -168,7 +186,8 @@ func (r *ReservationService) CancelReservation(ctx context.Context, conn *pgx.Co
 		}
 	}
 
-	if err := r.copyRepo.UpdateStatus(ctx, conn, reserv.CopyID, "available"); err != nil {
+	_, err = r.copyRepo.UpdateStatus(ctx, conn, reserv.CopyID, "available")
+	if err != nil {
 		r.logger.Error("failed to update copy status to available", zap.Int("copy_id", reserv.CopyID), zap.Error(err))
 		return errors.BusinessError{
 			Code:    "ErrCopyUpdatedStatus",
@@ -180,25 +199,46 @@ func (r *ReservationService) CancelReservation(ctx context.Context, conn *pgx.Co
 	return nil
 }
 
-func (r *ReservationService) GetReservation(ctx context.Context, conn *pgx.Conn, reservationID int) (*domain.Reservation, error) {
-	r.logger.Debug("get reservation started", zap.Int("reservation_id", reservationID))
+func (s *ReservationService) GetReservation(ctx context.Context, conn *pgx.Conn, reservationID int) (*ReservationResult, error) {
+	s.logger.Debug("get reservation started", zap.Int("reservation_id", reservationID))
 
-	if reservationID <= 0 {
-		r.logger.Warn("invalid reservation id", zap.Int("reservation_id", reservationID))
-		return nil, errors.ValidationError{
-			Field:   "ReservationID",
-			Message: "ID меньше 0 или равен 0",
+	reservation, err := s.reservRepo.GetByID(ctx, conn, reservationID)
+	if err != nil {
+		s.logger.Warn("reservation not found", zap.Int("reservation_id", reservationID), zap.Error(err))
+		return nil, errors.NotFoundError{
+			Entity: "Reservation",
+			ID:     reservationID,
 		}
 	}
 
-	reserv, err := r.reservRepo.GetByID(ctx, conn, reservationID)
+	copy, err := s.copyRepo.GetByID(ctx, conn, reservation.CopyID)
 	if err != nil {
-		r.logger.Warn("reservation not found", zap.Int("reservation_id", reservationID), zap.Error(err))
-		return nil, errors.NotFoundError{}
+		s.logger.Error("failed to get copy for reservation", zap.Int("copy_id", reservation.CopyID), zap.Error(err))
+		return nil, errors.BusinessError{
+			Code:    "ErrGetCopy",
+			Message: "Не удалось получить копию книги: " + err.Error(),
+		}
 	}
 
-	r.logger.Debug("get reservation finished", zap.Int("reservation_id", reserv.ID))
-	return reserv, nil
+	book, err := s.bookRepo.GetByID(ctx, conn, copy.BookID)
+	if err != nil {
+		s.logger.Error("failed to get book for reservation", zap.Int("book_id", copy.BookID), zap.Error(err))
+		book.Title = ""
+	}
+
+	reader, err := s.readerRepo.GetByID(ctx, conn, reservation.ReaderID)
+	if err != nil {
+		s.logger.Error("failed to get reader for reservation", zap.Int("reader_id", reservation.ReaderID), zap.Error(err))
+		reader.Name = ""
+	}
+
+	s.logger.Debug("get reservation finished", zap.Int("reservation_id", reservationID))
+
+	return &ReservationResult{
+		Reservation: *reservation,
+		BookTitle:   book.Title,
+		ReaderName:  reader.Name,
+	}, nil
 }
 
 func (r *ReservationService) GetActiveReaderReservations(ctx context.Context, conn *pgx.Conn, readerID int, limit int, offset int) ([]domain.Reservation, int, error) {
@@ -221,7 +261,7 @@ func (r *ReservationService) GetActiveReaderReservations(ctx context.Context, co
 		}
 	}
 
-	listActiveReaders, err := r.reservRepo.GetActiveByReader(ctx, conn, readerID, limit, offset)
+	listActiveReaders, total, err := r.reservRepo.GetActiveByReader(ctx, conn, readerID, limit, offset)
 	if err != nil {
 		r.logger.Error("failed to get active reader reservations", zap.Int("reader_id", readerID), zap.Error(err))
 		return nil, 0, errors.NotFoundError{
@@ -230,8 +270,8 @@ func (r *ReservationService) GetActiveReaderReservations(ctx context.Context, co
 		}
 	}
 
-	r.logger.Debug("get active reader reservations finished", zap.Int("reader_id", readerID), zap.Int("returned", len(listActiveReaders)))
-	return listActiveReaders, len(listActiveReaders), nil
+	r.logger.Debug("get active reader reservations finished", zap.Int("reader_id", readerID), zap.Int("returned", total))
+	return listActiveReaders, total, nil
 }
 
 func (r *ReservationService) GetActiveCopyReservations(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset int) ([]domain.Reservation, int, error) {
@@ -267,48 +307,46 @@ func (r *ReservationService) GetActiveCopyReservations(ctx context.Context, conn
 	return activeCopy, len(activeCopy), nil
 }
 
-func (r *ReservationService) ProcessExpiredReservations(ctx context.Context, conn *pgx.Conn, limit, offset int) error {
-	limit, offset = limitOffset(limit, offset)
-	r.logger.Info("process expired reservations started", zap.Int("limit", limit), zap.Int("offset", offset))
+func (s *ReservationService) ProcessExpiredReservations(ctx context.Context, conn *pgx.Conn, limit int) (int, error) {
+	s.logger.Info("processing expired reservations started", zap.Int("limit", limit))
 
-	expiredReservations, err := r.reservRepo.GetExpired(ctx, conn, 100, 0)
+	expiredReservations, err := s.reservRepo.GetExpired(ctx, conn, limit, 0)
 	if err != nil {
-		r.logger.Error("failed to get expired reservations", zap.Error(err))
-		return errors.BusinessError{
-			Code:    "get_expired_error",
+		s.logger.Error("failed to get expired reservations", zap.Error(err))
+		return 0, errors.BusinessError{
+			Code:    "ErrGetExpired",
 			Message: "Не удалось получить просроченные брони: " + err.Error(),
 		}
 	}
 
 	if len(expiredReservations) == 0 {
-		r.logger.Info("no expired reservations found")
-		return nil
+		s.logger.Info("no expired reservations found")
+		return 0, nil
 	}
 
-	r.logger.Info("processing expired reservations", zap.Int("count", len(expiredReservations)))
-
-	for _, reservation := range expiredReservations {
-		if err := r.reservRepo.UpdateStatus(ctx, conn, reservation.ID, "expired"); err != nil {
-			r.logger.Error("failed to update reservation status to expired", zap.Int("reservation_id", reservation.ID), zap.Error(err))
-			return errors.BusinessError{
-				Code:    "ErrReservationUpdateStatus",
-				Message: "Не удалось обновить статус резервации на expired: " + err.Error(),
-			}
+	processedCount := 0
+	for _, res := range expiredReservations {
+		if err := s.reservRepo.UpdateStatus(ctx, conn, res.ID, "expired"); err != nil {
+			s.logger.Error("failed to update reservation status to expired", zap.Int("reservation_id", res.ID), zap.Error(err))
+			continue
 		}
 
-		if err := r.copyRepo.UpdateStatus(ctx, conn, reservation.CopyID, "available"); err != nil {
-			r.logger.Error("failed to update copy status to available", zap.Int("copy_id", reservation.CopyID), zap.Error(err))
-			return errors.BusinessError{
-				Code:    "ErrCopyUpdateStatus",
-				Message: "Не удалось обновить статус у копии на available: " + err.Error(),
-			}
+		_, err := s.copyRepo.UpdateStatus(ctx, conn, res.CopyID, "available")
+		if err != nil {
+			s.logger.Error("failed to update copy status to available", zap.Int("copy_id", res.CopyID), zap.Error(err))
+			continue
 		}
 
-		r.logger.Debug("expired reservation processed", zap.Int("reservation_id", reservation.ID), zap.Int("copy_id", reservation.CopyID))
+		processedCount++
+		s.logger.Info("expired reservation processed",
+			zap.Int("reservation_id", res.ID),
+			zap.Int("copy_id", res.CopyID),
+			zap.Int("reader_id", res.ReaderID),
+		)
 	}
 
-	r.logger.Info("process expired reservations completed", zap.Int("processed", len(expiredReservations)))
-	return nil
+	s.logger.Info("processing expired reservations finished", zap.Int("processed_count", processedCount))
+	return processedCount, nil
 }
 
 func (r *ReservationService) CanReserve(ctx context.Context, conn *pgx.Conn, reservationID, copyID, readerID int) (bool, error) {
@@ -387,4 +425,58 @@ func (r *ReservationService) CanReserve(ctx context.Context, conn *pgx.Conn, res
 
 	r.logger.Debug("can reserve check passed", zap.Int("copy_id", copyID), zap.Int("reader_id", readerID))
 	return true, nil
+}
+
+type ReservationWithDetails struct {
+	Reservation domain.Reservation
+	BookTitle   string
+	ReaderName  string
+}
+
+func (s *ReservationService) GetActiveReaderReservationsWithDetails(ctx context.Context, conn *pgx.Conn, readerID, limit, offset int) ([]ReservationWithDetails, int, error) {
+	reservations, total, err := s.reservRepo.GetActiveByReader(ctx, conn, readerID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	result := make([]ReservationWithDetails, 0, len(reservations))
+	for _, res := range reservations {
+		copy, err := s.copyRepo.GetByID(ctx, conn, res.CopyID)
+		if err != nil {
+			continue
+		}
+		book, err := s.bookRepo.GetByID(ctx, conn, copy.BookID)
+		if err != nil {
+			continue
+		}
+		reader, err := s.readerRepo.GetByID(ctx, conn, res.ReaderID)
+		if err != nil {
+			continue
+		}
+
+		result = append(result, ReservationWithDetails{
+			Reservation: res,
+			BookTitle:   book.Title,
+			ReaderName:  reader.Name,
+		})
+	}
+
+	return result, total, nil
+}
+
+func (s *ReservationService) GetActiveReservationsByCopy(ctx context.Context, conn *pgx.Conn, copyID, limit, offset int) ([]domain.Reservation, int, error) {
+	s.logger.Debug("get active reservations by copy started", zap.Int("copy_id", copyID))
+
+	reservations, err := s.reservRepo.GetActiveByCopy(ctx, conn, copyID, limit, offset)
+	if err != nil {
+		s.logger.Error("failed to get active reservations by copy", zap.Int("copy_id", copyID), zap.Error(err))
+		return nil, 0, errors.BusinessError{
+			Code:    "ErrGetActiveReservations",
+			Message: "Не удалось получить активные брони: " + err.Error(),
+		}
+	}
+
+	total := len(reservations)
+	s.logger.Debug("get active reservations by copy finished", zap.Int("copy_id", copyID), zap.Int("count", total))
+	return reservations, total, nil
 }

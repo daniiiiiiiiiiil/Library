@@ -203,7 +203,7 @@ type BookListResponse struct {
 func NewBookListResponse(books []domain.Book, total, limit, offset int, authorIDs, genreIDs map[int][]int) BookListResponse {
 	resp := BookListResponse{
 		Books:      make([]BookResponse, 0, len(books)),
-		Pagination: pagination.Calculate(total, limit, offset),
+		Pagination: pagination.NewPagination(total, limit, offset),
 	}
 
 	for _, book := range books {

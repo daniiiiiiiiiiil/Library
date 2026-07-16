@@ -10,8 +10,7 @@ type Pagination struct {
 	HasPrev     bool `json:"has_prev"`
 }
 
-// Calculate - основной метод для вычисления пагинации
-func Calculate(total, limit, offset int) Pagination {
+func NewPagination(total, limit, offset int) Pagination {
 	if limit <= 0 {
 		limit = 10
 	}
@@ -36,7 +35,6 @@ func Calculate(total, limit, offset int) Pagination {
 	}
 }
 
-// FromRequest - создаёт пагинацию из параметров запроса
 func FromRequest(limit, offset int) (int, int) {
 	if limit <= 0 {
 		limit = 10
@@ -47,7 +45,6 @@ func FromRequest(limit, offset int) (int, int) {
 	return limit, offset
 }
 
-// FromPage - вычисляет offset из номера страницы
 func FromPage(page, limit int) int {
 	if page < 1 {
 		page = 1
@@ -58,16 +55,23 @@ func FromPage(page, limit int) int {
 	return (page - 1) * limit
 }
 
-// Response - общий тип для всех ответов с пагинацией
 type Response[T any] struct {
 	Items      []T        `json:"items"`
 	Pagination Pagination `json:"pagination"`
 }
 
-// NewResponse - создаёт ответ с пагинацией
 func NewResponse[T any](items []T, total, limit, offset int) Response[T] {
 	return Response[T]{
 		Items:      items,
-		Pagination: Calculate(total, limit, offset),
+		Pagination: NewPagination(total, limit, offset),
+	}
+}
+
+func LimitOffset(limit, offset int) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if offset < 0 {
+		offset = 0
 	}
 }

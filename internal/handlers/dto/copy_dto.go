@@ -55,6 +55,26 @@ type UpdateCopyRequest struct {
 	Status    *string `json:"status"`
 }
 
+func (r *UpdateCopyRequest) Validate() error {
+	var errs errors.ValidationErrors
+	if strings.TrimSpace(*r.Condition) == "" {
+		errs = append(errs, errors.ValidationError{
+			Field:   "condition",
+			Message: "condition не может быть пуcтым",
+		})
+	}
+	if strings.TrimSpace(*r.Status) == "" {
+		errs = append(errs, errors.ValidationError{
+			Field:   "status",
+			Message: "Статус не может быть пустым",
+		})
+	}
+	if errs.HasErrors() {
+		return errs
+	}
+	return nil
+}
+
 type UpdateCopyStatusRequest struct {
 	Status   string `json:"status"`
 	ReaderID *int   `json:"reader_id"`

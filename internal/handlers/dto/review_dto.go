@@ -109,7 +109,7 @@ type ReviewResponse struct {
 	UpdateAt   *time.Time `json:"updated_at"`
 }
 
-func (r *ReviewResponse) FromDomain(d domain.Review, bookTitle, readerName string) ReviewResponse {
+func ReviewRequestFromDomain(d domain.Review, bookTitle, readerName string) ReviewResponse {
 	return ReviewResponse{
 		ID:         d.ID,
 		BookID:     d.BookID,
@@ -128,4 +128,45 @@ type ReviewListResponse struct {
 	AverageRating float64               `json:"average_rating"`
 	TotalRewiews  int                   `json:"total_rewiews"`
 	Pagination    pagination.Pagination `json:"pagination"`
+}
+
+func NewReviewListResponse(
+	reviews []domain.Review,
+	bookTitles map[int]string,
+	readerNames map[int]string,
+	total, limit, offset int,
+	avgRating float64,
+) ReviewListResponse {
+	resp := ReviewListResponse{
+		Reviews:       make([]ReviewResponse, 0, len(reviews)),
+		AverageRating: avgRating,
+		TotalRewiews:  total,
+		Pagination:    pagination.NewPagination(total, limit, offset),
+	}
+
+	for _, review := range reviews {
+		bookTitle := ""
+		if title, ok := bookTitles[review.BookID]; ok {
+			bookTitle = title
+		}
+		readerName := ""
+		if name, ok := readerNames[review.ReaderID]; ok {
+			readerName = name
+		}
+
+		resp.Reviews = append(resp.Reviews, ReviewRequestFromDomain(
+			review,
+			bookTitle,
+			readerName,
+		))
+	}
+
+	return resp
+}
+
+type BookRatingResponse struct {
+	BookID        int     `json:"book_id"`
+	BookTitle     string  `json:"book_title"`
+	AverageRating float64 `json:"average_rating"`
+	ReviewsCount  int     `json:"reviews_count"`
 }

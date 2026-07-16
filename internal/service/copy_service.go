@@ -108,50 +108,52 @@ func (c *CopyService) GetCopiesByBook(ctx context.Context, conn *pgx.Conn, bookI
 	return copys, nil
 }
 
-func (c *CopyService) UpdateCopy(ctx context.Context, conn *pgx.Conn, copy *domain.BookCopy) error {
-	c.logger.Info("update copy started", zap.Int("copy_id", copy.ID), zap.Int("book_id", copy.BookID))
+func (c *CopyService) UpdateCopy(ctx context.Context, conn *pgx.Conn, id int, updates map[string]interface{}) (*domain.BookCopy, error) {
+	c.logger.Info("update copy started", zap.Int("copy_id", id))
 
-	if copy.ID > 0 {
-		exists, err := c.copyRepo.ExistsCopy(ctx, conn, copy.ID)
-		if err != nil {
-			c.logger.Error("failed to check copy existence", zap.Int("copy_id", copy.ID), zap.Error(err))
-			return errors.NotFoundError{
-				Entity: "Copy",
-				ID:     copy.ID,
-			}
-		}
-		if !exists {
-			c.logger.Warn("copy not found for update", zap.Int("copy_id", copy.ID))
-			return errors.NotFoundError{
-				Entity: "Copy",
-				ID:     copy.ID,
-			}
+	existingCopy, err := c.copyRepo.GetByID(ctx, conn, id)
+	if err != nil {
+		c.logger.Error("failed to get copy", zap.Int("copy_id", id), zap.Error(err))
+		return nil, errors.NotFoundError{
+			Entity: "Copy",
+			ID:     id,
 		}
 	}
-	if err := copy.Validate(); err != nil {
-		c.logger.Warn("copy validation failed on update", zap.Int("copy_id", copy.ID), zap.Error(err))
-		return errors.ValidationError{
+
+	if condition, ok := updates["condition"].(string); ok {
+		existingCopy.Condition = condition
+	}
+	if status, ok := updates["status"].(string); ok {
+		existingCopy.Status = status
+	}
+
+	if err := existingCopy.Validate(); err != nil {
+		c.logger.Warn("copy validation failed on update", zap.Int("copy_id", id), zap.Error(err))
+		return nil, errors.ValidationError{
 			Field:   err.Error(),
-			Message: "Ошибка валидации" + err.Error(),
-		}
-	}
-	if copy.Status == "borrowed" {
-		c.logger.Warn("cannot update borrowed copy", zap.Int("copy_id", copy.ID))
-		return errors.BusinessError{
-			Code:    "ErrCopyBorrowedCannotUpdate",
-			Message: "Копия выдана,нельзя обновить выданную копию",
-		}
-	}
-	if err := c.copyRepo.Update(ctx, conn, *copy); err != nil {
-		c.logger.Error("failed to update copy", zap.Int("copy_id", copy.ID), zap.Error(err))
-		return errors.BusinessError{
-			Code:    "ErrUpdateCopy",
-			Message: "Не удалось обновить копию" + err.Error(),
+			Message: "Ошибка валидации: " + err.Error(),
 		}
 	}
 
-	c.logger.Info("copy updated successfully", zap.Int("copy_id", copy.ID))
-	return nil
+	if existingCopy.Status == "borrowed" {
+		c.logger.Warn("cannot update borrowed copy", zap.Int("copy_id", id))
+		return nil, errors.BusinessError{
+			Code:    "ErrCopyBorrowedCannotUpdate",
+			Message: "Копия выдана, нельзя обновить выданную копию",
+		}
+	}
+
+	copyUpdate, err := c.copyRepo.Update(ctx, conn, *existingCopy)
+	if err != nil {
+		c.logger.Error("failed to update copy", zap.Int("copy_id", id), zap.Error(err))
+		return nil, errors.BusinessError{
+			Code:    "ErrUpdateCopy",
+			Message: "Не удалось обновить копию: " + err.Error(),
+		}
+	}
+
+	c.logger.Info("copy updated successfully", zap.Int("copy_id", id))
+	return copyUpdate, nil
 }
 
 func (c *CopyService) DeleteCopy(ctx context.Context, conn *pgx.Conn, id int) (*domain.BookCopy, error) {
@@ -277,13 +279,13 @@ func (c *CopyService) CountAvailableCopies(ctx context.Context, conn *pgx.Conn, 
 	return count, nil
 }
 
-func (c *CopyService) UpdateCopyStatus(ctx context.Context, conn *pgx.Conn, id int, status string, readerID *int) error {
+func (c *CopyService) UpdateCopyStatus(ctx context.Context, conn *pgx.Conn, id int, status string, readerID *int) (*domain.BookCopy, error) {
 	c.logger.Info("update copy status started", zap.Int("copy_id", id), zap.String("status", status), zap.Intp("reader_id", readerID))
 
 	_, err := c.copyRepo.GetByID(ctx, conn, id)
 	if err != nil {
 		c.logger.Warn("copy not found for status update", zap.Int("copy_id", id), zap.Error(err))
-		return errors.NotFoundError{
+		return nil, errors.NotFoundError{
 			Entity: "BookCopy",
 			ID:     id,
 		}
@@ -291,7 +293,7 @@ func (c *CopyService) UpdateCopyStatus(ctx context.Context, conn *pgx.Conn, id i
 
 	if status != "available" && status != "borrowed" && status != "reserved" && status != "damaged" && status != "lost" {
 		c.logger.Warn("invalid status", zap.Int("copy_id", id), zap.String("status", status))
-		return errors.BusinessError{
+		return nil, errors.BusinessError{
 			Code:    "invalid_status",
 			Message: "Недопустимый статус",
 		}
@@ -300,7 +302,7 @@ func (c *CopyService) UpdateCopyStatus(ctx context.Context, conn *pgx.Conn, id i
 	if status == "borrowed" {
 		if readerID == nil {
 			c.logger.Warn("reader_id required for borrowed status", zap.Int("copy_id", id))
-			return errors.BusinessError{
+			return nil, errors.BusinessError{
 				Code:    "reader_id_required",
 				Message: "Для выдачи книги необходимо указать ID читателя",
 			}
@@ -308,20 +310,21 @@ func (c *CopyService) UpdateCopyStatus(ctx context.Context, conn *pgx.Conn, id i
 		exists, err := c.readerRepo.Exists(ctx, conn, *readerID)
 		if err != nil {
 			c.logger.Error("failed to check reader existence", zap.Int("reader_id", *readerID), zap.Error(err))
-			return err
+			return nil, err
 		}
 		if !exists {
 			c.logger.Warn("reader not found", zap.Int("reader_id", *readerID))
-			return errors.NotFoundError{
+			return nil, errors.NotFoundError{
 				Entity: "Reader",
 				ID:     *readerID,
 			}
 		}
 	}
 
-	if err := c.copyRepo.UpdateStatus(ctx, conn, id, status); err != nil {
+	updateStatus, err := c.copyRepo.UpdateStatus(ctx, conn, id, status)
+	if err != nil {
 		c.logger.Error("failed to update copy status", zap.Int("copy_id", id), zap.String("status", status), zap.Error(err))
-		return errors.BusinessError{
+		return nil, errors.BusinessError{
 			Code:    "update_status_error",
 			Message: "Не удалось обновить статус копии: " + err.Error(),
 		}
@@ -330,7 +333,7 @@ func (c *CopyService) UpdateCopyStatus(ctx context.Context, conn *pgx.Conn, id i
 	if status == "available" {
 		if err := c.copyRepo.ClearReaderAndBorrowed(ctx, conn, id); err != nil {
 			c.logger.Error("failed to clear reader and borrowed data", zap.Int("copy_id", id), zap.Error(err))
-			return errors.BusinessError{
+			return nil, errors.BusinessError{
 				Code:    "clear_reader_error",
 				Message: "Не удалось очистить данные читателя: " + err.Error(),
 			}
@@ -338,5 +341,5 @@ func (c *CopyService) UpdateCopyStatus(ctx context.Context, conn *pgx.Conn, id i
 	}
 
 	c.logger.Info("copy status updated successfully", zap.Int("copy_id", id), zap.String("status", status))
-	return nil
+	return updateStatus, nil
 }

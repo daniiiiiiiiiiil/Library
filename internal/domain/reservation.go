@@ -137,3 +137,18 @@ func formatDaysHours(days, hours int) string {
 	}
 	return fmt.Sprintf("%d %s %d часов", days, daysStr, hours)
 }
+
+type ProcessExpiredRequest struct {
+	Limit int `json:"limit"`
+}
+
+func (r *ProcessExpiredRequest) Validate() error {
+	if r.Limit <= 0 {
+		r.Limit = 100
+	}
+	return nil
+}
+
+type ProcessExpiredResponse struct {
+	ProcessedCount int `json:"processed_count"`
+}

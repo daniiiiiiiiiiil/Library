@@ -236,35 +236,35 @@ func (g *GenreService) DeleteGenre(ctx context.Context, conn *pgx.Conn, id int) 
 	return genreDelete, nil
 }
 
-func (g *GenreService) ListGenres(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Genre, error) {
+func (g *GenreService) ListGenres(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Genre, int, error) {
 	limit, offset = limitOffset(limit, offset)
 	g.logger.Debug("list genres started", zap.Int("limit", limit), zap.Int("offset", offset))
 
 	genre, err := g.genreRepo.List(ctx, conn, limit, offset)
 	if err != nil {
 		g.logger.Error("failed to list genres", zap.Int("limit", limit), zap.Int("offset", offset), zap.Error(err))
-		return nil, errors.BusinessError{
+		return nil, 0, errors.BusinessError{
 			Code:    "ErrGetListGenres",
 			Message: "Не удалось получить список жанров" + err.Error(),
 		}
 	}
 
 	g.logger.Debug("list genres finished", zap.Int("returned", len(genre)))
-	return genre, nil
+	return genre, len(genre), nil
 }
 
-func (g *GenreService) GetSubGenres(ctx context.Context, conn *pgx.Conn, parentID int) ([]domain.Genre, error) {
+func (g *GenreService) GetSubGenres(ctx context.Context, conn *pgx.Conn, parentID int) ([]domain.Genre, int, error) {
 	g.logger.Debug("get subgenres started", zap.Int("parent_id", parentID))
 
 	if parentID > 0 {
 		exists, err := g.genreRepo.Exists(ctx, conn, parentID)
 		if err != nil {
 			g.logger.Error("failed to check parent genre existence", zap.Int("parent_id", parentID), zap.Error(err))
-			return nil, err
+			return nil, 0, err
 		}
 		if !exists {
 			g.logger.Warn("parent genre not found", zap.Int("parent_id", parentID))
-			return nil, errors.NotFoundError{
+			return nil, 0, errors.NotFoundError{
 				Entity: "ParentGenre",
 				ID:     parentID,
 			}
@@ -274,14 +274,14 @@ func (g *GenreService) GetSubGenres(ctx context.Context, conn *pgx.Conn, parentI
 	subGenre, err := g.genreRepo.GetSubGenres(ctx, conn, parentID)
 	if err != nil {
 		g.logger.Error("failed to get subgenres", zap.Int("parent_id", parentID), zap.Error(err))
-		return nil, errors.BusinessError{
+		return nil, 0, errors.BusinessError{
 			Code:    "ErrGetSubGenres",
 			Message: "Не удалось получить поджанры" + err.Error(),
 		}
 	}
 
 	g.logger.Debug("get subgenres finished", zap.Int("parent_id", parentID), zap.Int("subgenres_count", len(subGenre)))
-	return subGenre, nil
+	return subGenre, 0, nil
 }
 
 func (g *GenreService) GetRootGenres(ctx context.Context, conn *pgx.Conn) ([]domain.Genre, error) {

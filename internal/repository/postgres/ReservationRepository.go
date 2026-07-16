@@ -71,7 +71,7 @@ func (r *ReservationRepository) GetActiveByReader(ctx context.Context, conn *pgx
 	return reservations, nil
 }
 
-func (r *ReservationRepository) GetActiveByCopy(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset int) ([]domain.Reservation, error) {
+func (r *ReservationRepository) GetActiveByCopy(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset int) ([]domain.Reservation, int, error) {
 	sqlQuery := `
 	SELECT reservation_id, copy_id, reader_id, reserved_at, expires_at, status
 	FROM reservations
@@ -80,7 +80,7 @@ func (r *ReservationRepository) GetActiveByCopy(ctx context.Context, conn *pgx.C
 `
 	rows, err := conn.Query(ctx, sqlQuery, copyID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 	var reservations []domain.Reservation
@@ -93,11 +93,11 @@ func (r *ReservationRepository) GetActiveByCopy(ctx context.Context, conn *pgx.C
 			&reserve.ReservedAt,
 			&reserve.ExpiresAt,
 			&reserve.Status); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		reservations = append(reservations, reserve)
 	}
-	return reservations, nil
+	return reservations, len(reservations), nil
 }
 
 func (r *ReservationRepository) UpdateStatus(ctx context.Context, conn *pgx.Conn, id int, status string) error {

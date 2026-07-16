@@ -74,6 +74,38 @@ type UpdateReaderRequest struct {
 	MaxBooks *int    `json:"maxBooks"`
 }
 
+func (r *UpdateReaderRequest) Validate() error {
+	var errs errors.ValidationErrors
+	if strings.TrimSpace(*r.Name) == "" {
+		errs = append(errs, errors.ValidationError{
+			Field:   "name",
+			Message: "Имя не может быть пустым",
+		})
+	}
+	if strings.TrimSpace(*r.Phone) == "" {
+		errs = append(errs, errors.ValidationError{
+			Field:   "phone",
+			Message: "Номер телефона не может быть пустым",
+		})
+	}
+	if strings.TrimSpace(*r.Email) == "" {
+		errs = append(errs, errors.ValidationError{
+			Field:   "email",
+			Message: "Email не может быть пустым",
+		})
+	}
+	if *r.MaxBooks < 0 {
+		errs = append(errs, errors.ValidationError{
+			Field:   "maxBooks",
+			Message: "Максимальное количество книг не может быть меньше нуля",
+		})
+	}
+	if errs.HasErrors() {
+		return errs
+	}
+	return nil
+}
+
 func (r *UpdateReaderRequest) ToDomain(readerID int, existingReader domain.Reader) (domain.Reader, error) {
 	name := existingReader.Name
 	if r.Name != nil {
@@ -133,4 +165,30 @@ type ReaderHistoryResponse struct {
 	reader      ReaderResponse
 	transaction []TransactionResponse
 	pagination  pagination.Pagination
+}
+
+type ReaderListResponse struct {
+	Readers    []ReaderResponse      `json:"readers"`
+	Pagination pagination.Pagination `json:"pagination"`
+}
+
+func NewReaderListResponse(readers []domain.Reader, total, limit, offset int) ReaderListResponse {
+	resp := ReaderListResponse{
+		Readers:    make([]ReaderResponse, 0, len(readers)),
+		Pagination: pagination.NewPagination(total, limit, offset),
+	}
+
+	for _, reader := range readers {
+		resp.Readers = append(resp.Readers, ReaderFromDomain(reader))
+	}
+
+	return resp
+}
+
+func NewReaderHistoryResponse(readerID int, transactions []TransactionResponse, total, limit, offset int) map[string]interface{} {
+	return map[string]interface{}{
+		"reader_id":    readerID,
+		"transactions": transactions,
+		"pagination":   pagination.NewPagination(total, limit, offset),
+	}
 }

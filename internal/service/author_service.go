@@ -233,17 +233,17 @@ func (s *AuthorService) ListAuthors(ctx context.Context, conn *pgx.Conn, limit, 
 	return authors, total, nil
 }
 
-func (s *AuthorService) GetAuthorsByBook(ctx context.Context, conn *pgx.Conn, bookID int) ([]domain.Author, error) {
+func (s *AuthorService) GetAuthorsByBook(ctx context.Context, conn *pgx.Conn, bookID int, limit, offset int) ([]domain.Author, int, error) {
 	s.logger.Debug("get authors by book started", zap.Int("book_id", bookID))
 
 	exists, err := s.bookRepo.Exists(ctx, conn, bookID)
 	if err != nil {
 		s.logger.Error("failed to check book existence", zap.Int("book_id", bookID), zap.Error(err))
-		return nil, err
+		return nil, 0, err
 	}
 	if !exists {
 		s.logger.Warn("book not found for get authors", zap.Int("book_id", bookID))
-		return nil, errors.NotFoundError{
+		return nil, 0, errors.NotFoundError{
 			Entity: "Book",
 			ID:     bookID,
 		}
@@ -252,14 +252,14 @@ func (s *AuthorService) GetAuthorsByBook(ctx context.Context, conn *pgx.Conn, bo
 	authors, err := s.authorRepo.GetByBookID(ctx, conn, bookID)
 	if err != nil {
 		s.logger.Error("failed to get authors by book id", zap.Int("book_id", bookID), zap.Error(err))
-		return nil, errors.BusinessError{
+		return nil, 0, errors.BusinessError{
 			Code:    "ErrGetByBookID",
 			Message: "Не удалось получить авторов книги: " + err.Error(),
 		}
 	}
 
 	s.logger.Debug("get authors by book finished", zap.Int("book_id", bookID), zap.Int("author_count", len(authors)))
-	return authors, nil
+	return authors, len(authors), nil
 }
 
 func (s *AuthorService) SearchAuthors(ctx context.Context, conn *pgx.Conn, column, search string, limit, offset int) ([]domain.Author, int, error) {

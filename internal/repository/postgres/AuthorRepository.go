@@ -188,15 +188,16 @@ func (r *AuthorRepository) ExistsByNameExcludeID(ctx context.Context, conn *pgx.
 	return exists, err
 }
 
-func (r *AuthorRepository) GetByBookID(ctx context.Context, conn *pgx.Conn, bookID int) ([]domain.Author, error) {
+func (r *AuthorRepository) GetByBookID(ctx context.Context, conn *pgx.Conn, bookID int, limit, offset int) ([]domain.Author, error) {
 	sqlQuery := `
 		SELECT a.authors_id, a.first_name, a.last_name, a.biography, a.birth_date
 		FROM authors a
 		JOIN book_authors ba ON a.authors_id = ba.authors_id
 		WHERE ba.book_id = $1
 		ORDER BY a.last_name ASC, a.first_name ASC
+		LIMIT $2 OFFSET $3
 	`
-	rows, err := conn.Query(ctx, sqlQuery, bookID)
+	rows, err := conn.Query(ctx, sqlQuery, bookID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

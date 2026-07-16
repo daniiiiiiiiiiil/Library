@@ -102,3 +102,31 @@ type PublisherBooksResponse struct {
 	books      []BookResponse
 	pagination pagination.Pagination
 }
+
+func PublisherResponseFromDomain(publisher domain.Publisher) *PublisherResponse {
+	return &PublisherResponse{
+		ID:         publisher.ID,
+		Name:       publisher.Name,
+		Address:    publisher.Address,
+		Phone:      publisher.Phone,
+		BooksCount: 0,
+	}
+}
+
+type PublisherListResponse struct {
+	Publishers []PublisherResponse   `json:"publishers"`
+	Pagination pagination.Pagination `json:"pagination"`
+}
+
+func NewPublisherListResponse(publishers []domain.Publisher, total, limit, offset int) PublisherListResponse {
+	resp := PublisherListResponse{
+		Publishers: make([]PublisherResponse, 0, len(publishers)),
+		Pagination: pagination.NewPagination(total, limit, offset),
+	}
+
+	for _, publisher := range publishers {
+		resp.Publishers = append(resp.Publishers, *PublisherResponseFromDomain(publisher))
+	}
+
+	return resp
+}

@@ -118,13 +118,13 @@ func (r *ReaderService) GetByEmail(ctx context.Context, conn *pgx.Conn, email st
 	return reader, nil
 }
 
-func (r *ReaderService) Update(ctx context.Context, conn *pgx.Conn, id int, updates map[string]interface{}) error {
+func (r *ReaderService) Update(ctx context.Context, conn *pgx.Conn, id int, updates map[string]interface{}) (*domain.Reader, error) {
 	r.logger.Info("update reader started", zap.Int("reader_id", id))
 
 	existingReader, err := r.readerRepo.GetByID(ctx, conn, id)
 	if err != nil {
 		r.logger.Warn("reader not found for update", zap.Int("reader_id", id), zap.Error(err))
-		return errors.NotFoundError{
+		return nil, errors.NotFoundError{
 			Entity: "Reader",
 			ID:     id,
 		}
@@ -151,19 +151,20 @@ func (r *ReaderService) Update(ctx context.Context, conn *pgx.Conn, id int, upda
 
 	if err := existingReader.ValidateReader(); err != nil {
 		r.logger.Warn("reader validation failed on update", zap.Int("reader_id", id), zap.Error(err))
-		return errors.BusinessError{
+		return nil, errors.BusinessError{
 			Code:    "ErrValidation",
 			Message: "Не прошли валидацию" + err.Error(),
 		}
 	}
 
-	if err := r.readerRepo.Update(ctx, conn, id, *existingReader); err != nil {
+	updatesReader, err := r.readerRepo.Update(ctx, conn, id, *existingReader)
+	if err != nil {
 		r.logger.Error("failed to update reader", zap.Int("reader_id", id), zap.Error(err))
-		return err
+		return nil, err
 	}
 
 	r.logger.Info("reader updated successfully", zap.Int("reader_id", id))
-	return nil
+	return updatesReader, nil
 }
 
 func (r *ReaderService) Delete(ctx context.Context, conn *pgx.Conn, id int) error {
@@ -218,21 +219,21 @@ func (r *ReaderService) Delete(ctx context.Context, conn *pgx.Conn, id int) erro
 	return nil
 }
 
-func (r *ReaderService) ListReader(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error) {
+func (r *ReaderService) ListReader(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, int, error) {
 	limit, offset = limitOffset(limit, offset)
 	r.logger.Debug("list readers started", zap.Int("limit", limit), zap.Int("offset", offset))
 
 	reader, err := r.readerRepo.List(ctx, conn, limit, offset)
 	if err != nil {
 		r.logger.Error("failed to list readers", zap.Int("limit", limit), zap.Int("offset", offset), zap.Error(err))
-		return nil, errors.BusinessError{
+		return nil, 0, errors.BusinessError{
 			Code:    "ErrorGetListReader",
 			Message: "Не удалось получить список читателей:" + err.Error(),
 		}
 	}
 
 	r.logger.Debug("list readers finished", zap.Int("returned", len(reader)))
-	return reader, nil
+	return reader, len(reader), nil
 }
 
 func (r *ReaderService) GetActiveReaders(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error) {

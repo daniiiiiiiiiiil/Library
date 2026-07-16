@@ -84,10 +84,10 @@ type BookCopyRepository interface {
 	CreateCopy(ctx context.Context, conn *pgx.Conn, bookCopy *domain.BookCopy) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.BookCopy, error)
 	GetCopiesByBookID(ctx context.Context, conn *pgx.Conn, bookID, limit, offset int) ([]domain.BookCopy, error)
-	Update(ctx context.Context, conn *pgx.Conn, bookCopy domain.BookCopy) error
+	Update(ctx context.Context, conn *pgx.Conn, bookCopy domain.BookCopy) (*domain.BookCopy, error)
 	Delete(ctx context.Context, conn *pgx.Conn, id int) error
 	GetAvailable(ctx context.Context, conn *pgx.Conn, bookID int) ([]domain.BookCopy, error)
-	UpdateStatus(ctx context.Context, conn *pgx.Conn, id int, status string) error
+	UpdateStatus(ctx context.Context, conn *pgx.Conn, id int, status string) (*domain.BookCopy, error)
 	CountAvailable(ctx context.Context, conn *pgx.Conn, bookID int) (int, error)
 	HasActiveCopies(ctx context.Context, conn *pgx.Conn, bookID int) (bool, error)
 	GetNextCopyNumber(ctx context.Context, conn *pgx.Conn, bookID int) (int, error)
@@ -101,7 +101,7 @@ type ReaderRepository interface {
 	CreateReader(ctx context.Context, conn *pgx.Conn, reader *domain.Reader) (*domain.Reader, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reader, error)
 	GetByEmail(ctx context.Context, conn *pgx.Conn, email string) (*domain.Reader, error)
-	Update(ctx context.Context, conn *pgx.Conn, id int, reader domain.Reader) error
+	Update(ctx context.Context, conn *pgx.Conn, id int, reader domain.Reader) (*domain.Reader, error)
 	Delete(ctx context.Context, conn *pgx.Conn, id int) error
 	List(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error)
 	GetActive(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reader, error)
@@ -150,9 +150,9 @@ type TransactionRepository interface {
 
 // ReservationRepository определяет методы для работы с бронированиями
 type ReservationRepository interface {
-	CreateReservation(ctx context.Context, conn *pgx.Conn, reserv *domain.Reservation) error
+	CreateReservation(ctx context.Context, conn *pgx.Conn, reserv *domain.Reservation) (*domain.Reservation, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reservation, error)
-	GetActiveByReader(ctx context.Context, conn *pgx.Conn, readerID, limit, offset int) ([]domain.Reservation, error)
+	GetActiveByReader(ctx context.Context, conn *pgx.Conn, readerID, limit, offset int) ([]domain.Reservation, int, error)
 	GetActiveByCopy(ctx context.Context, conn *pgx.Conn, copyID, limit, offset int) ([]domain.Reservation, error)
 	UpdateStatus(ctx context.Context, conn *pgx.Conn, id int, status string) error
 	Delete(ctx context.Context, conn *pgx.Conn, id int) error

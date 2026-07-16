@@ -1,7 +1,6 @@
 package dto
 
 import (
-	"library/pkg/pagination"
 	"time"
 )
 
@@ -16,13 +15,29 @@ func NewSuccessResponse(data interface{}) APIResponse {
 	return APIResponse{
 		Success:   true,
 		Data:      data,
+		Error:     nil,
 		Timestamp: time.Now(),
 	}
 }
 
-func NewErrorResponse(code, message string, details []ValidationErrorDetail) APIResponse {
+func NewErrorResponse(code, message string) APIResponse {
 	return APIResponse{
 		Success: false,
+		Data:    nil,
+		Error: &ErrorResponse{
+			Code:      code,
+			Message:   message,
+			Details:   nil,
+			Timestamp: time.Now(),
+		},
+		Timestamp: time.Now(),
+	}
+}
+
+func NewValidationErrorResponse(code, message string, details []ValidationErrorDetail) APIResponse {
+	return APIResponse{
+		Success: false,
+		Data:    nil,
 		Error: &ErrorResponse{
 			Code:      code,
 			Message:   message,
@@ -45,7 +60,7 @@ type ValidationErrorDetail struct {
 	Message string `json:"message"`
 }
 
-type PaginationResponse struct {
+type Pagination struct {
 	Total       int    `json:"total"`
 	Limit       int    `json:"limit"`
 	Offset      int    `json:"offset"`
@@ -55,30 +70,36 @@ type PaginationResponse struct {
 	Previous    string `json:"previous,omitempty"`
 }
 
-func PaginationResponseFromDomain(p pagination.Pagination, next, previous string) PaginationResponse {
-	return PaginationResponse{
-		Total:       p.Total,
-		Limit:       p.Limit,
-		Offset:      p.Offset,
-		CurrentPage: p.CurrentPage,
-		TotalPages:  p.TotalPages,
-		Next:        next,
-		Previous:    previous,
+func NewPagination(total, limit, offset int) Pagination {
+	if limit <= 0 {
+		limit = 10
+	}
+	currentPage := (offset / limit) + 1
+	totalPages := (total + limit - 1) / limit
+
+	return Pagination{
+		Total:       total,
+		Limit:       limit,
+		Offset:      offset,
+		CurrentPage: currentPage,
+		TotalPages:  totalPages,
 	}
 }
 
 type HealthCheckResponse struct {
-	Status   string `json:"status"`
-	Database string `json:"database"`
-	Uptime   string `json:"uptime"`
-	Version  string `json:"version"`
+	Status   string    `json:"status"`
+	Database string    `json:"database"`
+	Uptime   string    `json:"uptime"`
+	Version  string    `json:"version"`
+	Time     time.Time `json:"time"`
 }
 
-func NewHealthCheckResponse(status, dbStatus, uptime, version string) HealthCheckResponse {
+func NewHealthCheckResponse(status, database, uptime, version string) HealthCheckResponse {
 	return HealthCheckResponse{
 		Status:   status,
-		Database: dbStatus,
+		Database: database,
 		Uptime:   uptime,
 		Version:  version,
+		Time:     time.Now(),
 	}
 }

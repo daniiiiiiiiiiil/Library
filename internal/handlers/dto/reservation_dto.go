@@ -2,6 +2,7 @@ package dto
 
 import (
 	"library/internal/domain"
+	"library/internal/service"
 	"library/pkg/errors"
 	"library/pkg/pagination"
 	"time"
@@ -46,7 +47,7 @@ type ReservationResponse struct {
 	TimeRemaining string    `json:"time_remaining"`
 }
 
-func (r *ReservationResponse) FromDomain(d domain.Reservation, bookTitle, readerName string) ReservationResponse {
+func ReservationResponseFromDomain(d domain.Reservation, bookTitle, readerName string) ReservationResponse {
 	return ReservationResponse{
 		ID:            d.ID,
 		CopyID:        d.CopyID,
@@ -64,4 +65,73 @@ func (r *ReservationResponse) FromDomain(d domain.Reservation, bookTitle, reader
 type ReservationListResponse struct {
 	reservations []ReservationResponse
 	pagination   pagination.Pagination
+}
+
+func NewReservationListResponse(reservations []domain.Reservation, bookTitles, readerNames map[int]string, total, limit, offset int) ReservationListResponse {
+	resp := ReservationListResponse{
+		reservations: make([]ReservationResponse, 0, len(reservations)),
+		pagination:   pagination.NewPagination(total, limit, offset),
+	}
+
+	for _, reservation := range reservations {
+		bookTitle := ""
+		if title, ok := bookTitles[reservation.CopyID]; ok {
+			bookTitle = title
+		}
+
+		readerName := ""
+		if name, ok := readerNames[reservation.ReaderID]; ok {
+			readerName = name
+		}
+
+		resp.reservations = append(resp.reservations, ReservationResponseFromDomain(
+			reservation,
+			bookTitle,
+			readerName,
+		))
+	}
+
+	return resp
+}
+
+type ReservationWithDetailsDTO struct {
+	Reservation domain.Reservation
+	BookTitle   string
+	ReaderName  string
+}
+
+func NewReservationListResponseWithDetails(
+	reservations []service.ReservationWithDetails,
+	total, limit, offset int,
+) ReservationListResponse {
+	resp := ReservationListResponse{
+		reservations: make([]ReservationResponse, 0, len(reservations)),
+		pagination:   pagination.NewPagination(total, limit, offset),
+	}
+
+	for _, r := range reservations {
+		resp.reservations = append(resp.reservations, ReservationResponseFromDomain(
+			r.Reservation,
+			r.BookTitle,
+			r.ReaderName,
+		))
+	}
+
+	return resp
+}
+
+type ProcessExpiredResponse struct {
+	ProcessedCount int    `json:"processed_count"`
+	Message        string `json:"message,omitempty"`
+}
+
+type ProcessExpiredRequest struct {
+	Limit int `json:"limit"`
+}
+
+func (r *ProcessExpiredRequest) Validate() error {
+	if r.Limit <= 0 {
+		r.Limit = 100
+	}
+	return nil
 }
