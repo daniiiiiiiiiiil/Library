@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"library/internal/domain"
 	"library/internal/handlers/dto"
-	"library/internal/middleware"
 	"library/internal/service"
 	"library/pkg/pagination"
 	"net/http"
@@ -24,7 +23,10 @@ func NewGenreHandlers(service *service.GenreService) *GenreHandlers {
 }
 
 func (h *GenreHandlers) CreateGenre(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	var req dto.CreateGenreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -47,7 +49,10 @@ func (h *GenreHandlers) CreateGenre(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GenreHandlers) GetGenres(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	pagination.LimitOffset(limit, offset)
@@ -62,7 +67,10 @@ func (h *GenreHandlers) GetGenres(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GenreHandlers) GetGenre(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	genreID, err := strconv.Atoi(vars["genreID"])
 	if err != nil || genreID <= 0 {
@@ -79,7 +87,10 @@ func (h *GenreHandlers) GetGenre(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GenreHandlers) UpdateGenre(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	genreID, err := strconv.Atoi(vars["genreID"])
 	if err != nil || genreID <= 0 {
@@ -114,7 +125,10 @@ func (h *GenreHandlers) UpdateGenre(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GenreHandlers) DeleteGenre(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	genreID, err := strconv.Atoi(vars["genreID"])
 	if err != nil || genreID <= 0 {
@@ -127,11 +141,14 @@ func (h *GenreHandlers) DeleteGenre(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp := dto.FromDomainGenreResponse(*genre)
-	sendSuccess(w, http.StatusOK, resp)
+	sendSuccess(w, http.StatusNoContent, resp)
 }
 
 func (h *GenreHandlers) GetGenreHierarchy(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	genres, err := h.service.GetRootGenres(r.Context(), conn)
 	if err != nil {
@@ -166,7 +183,10 @@ func buildGenreHierarchy(genre domain.Genre, ctx context.Context, conn *pgx.Conn
 }
 
 func (h *GenreHandlers) GetSubgenres(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	ParentID, err := strconv.Atoi(vars["parent_id"])
@@ -189,7 +209,10 @@ func (h *GenreHandlers) GetSubgenres(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GenreHandlers) GenreSearch(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))

@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"library/internal/handlers/dto"
-	"library/internal/middleware"
 	"library/internal/service"
 	"library/pkg/pagination"
 	"net/http"
@@ -13,16 +12,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type HTTPHandlersAuthor struct {
+type AuthorHandler struct {
 	service *service.AuthorService
 }
 
-func NewHTTPHandlersAuthor(service *service.AuthorService) *HTTPHandlersAuthor {
-	return &HTTPHandlersAuthor{service: service}
+func NewHTTPHandlersAuthor(service *service.AuthorService) *AuthorHandler {
+	return &AuthorHandler{service: service}
 }
 
-func (h *HTTPHandlersAuthor) PostCreateAuthor(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+func (h *AuthorHandler) PostCreateAuthor(w http.ResponseWriter, r *http.Request) {
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	var req dto.CreateAuthorRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sendError(w, http.StatusBadRequest, "InvalidRequest", "Неверный формат запроса")
@@ -43,8 +45,11 @@ func (h *HTTPHandlersAuthor) PostCreateAuthor(w http.ResponseWriter, r *http.Req
 	sendSuccess(w, http.StatusCreated, resp)
 }
 
-func (h *HTTPHandlersAuthor) GetAuthors(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+func (h *AuthorHandler) GetAuthors(w http.ResponseWriter, r *http.Request) {
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	pagination.LimitOffset(limit, offset)
@@ -58,8 +63,11 @@ func (h *HTTPHandlersAuthor) GetAuthors(w http.ResponseWriter, r *http.Request) 
 	sendSuccess(w, http.StatusOK, resp)
 }
 
-func (h *HTTPHandlersAuthor) GetAuthor(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+func (h *AuthorHandler) GetAuthor(w http.ResponseWriter, r *http.Request) {
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	authorID, err := strconv.Atoi(vars["id"])
 	if err != nil || authorID <= 0 {
@@ -75,8 +83,11 @@ func (h *HTTPHandlersAuthor) GetAuthor(w http.ResponseWriter, r *http.Request) {
 	sendSuccess(w, http.StatusOK, resp)
 }
 
-func (h *HTTPHandlersAuthor) UpdateAuthor(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+func (h *AuthorHandler) UpdateAuthor(w http.ResponseWriter, r *http.Request) {
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	authorID, err := strconv.Atoi(vars["id"])
 	if err != nil || authorID <= 0 {
@@ -116,8 +127,11 @@ func (h *HTTPHandlersAuthor) UpdateAuthor(w http.ResponseWriter, r *http.Request
 	sendSuccess(w, http.StatusOK, resp)
 }
 
-func (h *HTTPHandlersAuthor) DeleteAuthor(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+func (h *AuthorHandler) DeleteAuthor(w http.ResponseWriter, r *http.Request) {
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	authorID, err := strconv.Atoi(vars["id"])
 	if err != nil || authorID <= 0 {
@@ -131,8 +145,11 @@ func (h *HTTPHandlersAuthor) DeleteAuthor(w http.ResponseWriter, r *http.Request
 	sendSuccess(w, http.StatusNoContent, nil)
 }
 
-func (h *HTTPHandlersAuthor) GetAuthorSearch(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+func (h *AuthorHandler) GetAuthorSearch(w http.ResponseWriter, r *http.Request) {
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	column := r.URL.Query().Get("column")
 	search := r.URL.Query().Get("search")
@@ -158,8 +175,11 @@ func (h *HTTPHandlersAuthor) GetAuthorSearch(w http.ResponseWriter, r *http.Requ
 	sendSuccess(w, http.StatusOK, resp)
 }
 
-func (h *HTTPHandlersAuthor) AuthorsByBook(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+func (h *AuthorHandler) AuthorsByBook(w http.ResponseWriter, r *http.Request) {
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))

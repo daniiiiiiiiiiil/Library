@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"library/internal/handlers/dto"
-	"library/internal/middleware"
 	"library/internal/service"
 	"library/pkg/pagination"
 	"net/http"
@@ -34,7 +33,10 @@ func NewReservationHandler(
 }
 
 func (h *ReservationHandler) CreateReservationBook(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	readerID, err := strconv.Atoi(vars["reader_id"])
@@ -69,7 +71,10 @@ func (h *ReservationHandler) CreateReservationBook(w http.ResponseWriter, r *htt
 }
 
 func (h *ReservationHandler) DeleteReservation(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	reservationID, err := strconv.Atoi(vars["reservation_id"])
 	if err != nil || reservationID <= 0 {
@@ -84,7 +89,10 @@ func (h *ReservationHandler) DeleteReservation(w http.ResponseWriter, r *http.Re
 }
 
 func (h *ReservationHandler) GetReservationByID(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	reservationID, err := strconv.Atoi(vars["reservation_id"])
 	if err != nil || reservationID <= 0 {
@@ -103,7 +111,10 @@ func (h *ReservationHandler) GetReservationByID(w http.ResponseWriter, r *http.R
 }
 
 func (h *ReservationHandler) GetActiveReservedBookReader(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	readerID, err := strconv.Atoi(vars["reader_id"])
 	if err != nil || readerID <= 0 {
@@ -126,7 +137,10 @@ func (h *ReservationHandler) GetActiveReservedBookReader(w http.ResponseWriter, 
 }
 
 func (h *ReservationHandler) GetActiveReservationsByCopy(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	copyID, err := strconv.Atoi(vars["copyId"])
@@ -176,7 +190,10 @@ func (h *ReservationHandler) GetActiveReservationsByCopy(w http.ResponseWriter, 
 }
 
 func (h *ReservationHandler) ProcessExpiredReservations(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	var req dto.ProcessExpiredRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

@@ -3,9 +3,12 @@ package postgres
 import (
 	"context"
 	"library/internal/domain"
+	"library/internal/repository"
 
 	"github.com/jackc/pgx/v5"
 )
+
+var _ repository.BookCopyRepository = (*BookCopyRepository)(nil)
 
 type BookCopyRepository struct{}
 
@@ -74,12 +77,12 @@ func (r *BookCopyRepository) GetCopiesByBookID(ctx context.Context, conn *pgx.Co
 	return bookCopies, nil
 }
 
-func (r *BookCopyRepository) Update(ctx context.Context, conn *pgx.Conn, bookCopy domain.BookCopy) error {
+func (r *BookCopyRepository) Update(ctx context.Context, conn *pgx.Conn, bookCopy domain.BookCopy) (*domain.BookCopy, error) {
 	sqlQuery := `
 	UPDATE book_copies
 	SET book_id = $1, copy_number = $2, status = $3, condition = $4, reader_id = $5, borrowed_at = $6
 	WHERE book_copy_id = $7
-`
+	`
 	_, err := conn.Exec(ctx, sqlQuery,
 		bookCopy.BookID,
 		bookCopy.CopyNumber,
@@ -88,7 +91,10 @@ func (r *BookCopyRepository) Update(ctx context.Context, conn *pgx.Conn, bookCop
 		bookCopy.ReaderID,
 		bookCopy.BorrowedAt,
 		bookCopy.ID)
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return &bookCopy, nil
 }
 
 func (r *BookCopyRepository) Delete(ctx context.Context, conn *pgx.Conn, id int) error {
@@ -137,14 +143,27 @@ func (r *BookCopyRepository) GetAvailable(ctx context.Context, conn *pgx.Conn, b
 	return copies, nil
 }
 
-func (r *BookCopyRepository) UpdateStatus(ctx context.Context, conn *pgx.Conn, id int, status string) error {
+func (r *BookCopyRepository) UpdateStatus(ctx context.Context, conn *pgx.Conn, id int, status string) (*domain.BookCopy, error) {
 	sqlQuery := `
 	UPDATE book_copies
 	SET status = $1
 	WHERE book_copy_id = $2
-`
-	_, err := conn.Exec(ctx, sqlQuery, status, id)
-	return err
+	RETURNING book_copy_id, book_id, copy_number, status, condition, reader_id, borrowed_at
+	`
+	var bookCopy domain.BookCopy
+	err := conn.QueryRow(ctx, sqlQuery, status, id).Scan(
+		&bookCopy.ID,
+		&bookCopy.BookID,
+		&bookCopy.CopyNumber,
+		&bookCopy.Status,
+		&bookCopy.Condition,
+		&bookCopy.ReaderID,
+		&bookCopy.BorrowedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &bookCopy, nil
 }
 
 func (r *BookCopyRepository) CountAvailable(ctx context.Context, conn *pgx.Conn, bookID int) (int, error) {

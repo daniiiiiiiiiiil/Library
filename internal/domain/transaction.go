@@ -14,7 +14,7 @@ type Transaction struct {
 	DueDate    time.Time  `json:"due_date"`
 	ReturnedAt *time.Time `json:"returned_at"`
 	Status     string     `json:"status"`
-	FineAmount float64    `json:"fine_amount"`
+	FineAmount float64    `json:"fine"`
 }
 
 func NewTransaction(
@@ -96,7 +96,7 @@ func (t Transaction) ValidateTransaction() error {
 
 	if t.FineAmount < 0 {
 		errs = append(errs, errors.ValidationError{
-			Field:   "fine_amount",
+			Field:   "fine",
 			Message: "штраф не может быть отрицательным",
 		})
 	}
@@ -180,5 +180,19 @@ func (t Transaction) CalculateDaysOverdue() int {
 		days++
 	}
 
+	return days
+}
+
+func (t Transaction) DaysOverdue() int {
+	if t.ReturnedAt != nil {
+		return 0
+	}
+	if t.DueDate.After(time.Now()) {
+		return 0
+	}
+	days := int(time.Now().Sub(t.DueDate).Hours() / 24)
+	if days < 0 {
+		return 0
+	}
 	return days
 }

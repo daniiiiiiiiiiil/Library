@@ -20,10 +20,18 @@ func DBConnection(conn *pgx.Conn) func(http.Handler) http.Handler {
 	}
 }
 
-func GetConnFromContext(r *http.Request) *pgx.Conn {
-	conn, ok := r.Context().Value("db_conn").(*pgx.Conn)
-	if !ok {
-		return nil
+func GetConnFromContext(r *http.Request) (*pgx.Conn, error) {
+	conn, ok := r.Context().Value(DBConnKey).(*pgx.Conn)
+	if !ok || conn == nil {
+		return nil, ErrDBConnectionNotFound
 	}
-	return conn
+	return conn, nil
+}
+
+var ErrDBConnectionNotFound = &DBConnectionError{}
+
+type DBConnectionError struct{}
+
+func (e *DBConnectionError) Error() string {
+	return "database connection not found in context"
 }

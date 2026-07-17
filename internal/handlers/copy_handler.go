@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"library/internal/handlers/dto"
-	"library/internal/middleware"
 	"library/internal/service"
 	"library/pkg/pagination"
 	"net/http"
@@ -21,10 +20,13 @@ func NewHTTPHandlersCopy(service *service.CopyService) *CopyHandler {
 }
 
 func (h *CopyHandler) GetCopy(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+	id, err := strconv.Atoi(vars["CopyID"])
 	if err != nil || id <= 0 {
 		sendError(w, http.StatusBadRequest, "InvalidID", "Неверный ID копии")
 		return
@@ -39,8 +41,10 @@ func (h *CopyHandler) GetCopy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CopyHandler) GetCopiesByBook(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
-
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	bookID, err := strconv.Atoi(vars["bookId"])
 	if err != nil || bookID <= 0 {
@@ -73,7 +77,10 @@ func (h *CopyHandler) GetCopiesByBook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CopyHandler) GetCopiesAvaliables(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	bookID, err := strconv.Atoi(vars["bookId"])
 	if err != nil || bookID <= 0 {
@@ -104,7 +111,10 @@ func (h *CopyHandler) GetCopiesAvaliables(w http.ResponseWriter, r *http.Request
 }
 
 func (h *CopyHandler) PUTCopies(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	copyID, err := strconv.Atoi(vars["CopyID"])
@@ -139,7 +149,10 @@ func (h *CopyHandler) PUTCopies(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CopyHandler) DeleteCopies(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	copyID, err := strconv.Atoi(vars["CopyID"])
 	if err != nil || copyID <= 0 {
@@ -151,11 +164,14 @@ func (h *CopyHandler) DeleteCopies(w http.ResponseWriter, r *http.Request) {
 		sendServiceError(w, err)
 		return
 	}
-	sendSuccess(w, http.StatusOK, deleteCopy)
+	sendSuccess(w, http.StatusNoContent, deleteCopy)
 }
 
 func (h *CopyHandler) PathCopyStatus(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	copyID, err := strconv.Atoi(vars["CopyID"])
 	if err != nil || copyID <= 0 {
@@ -182,7 +198,10 @@ func (h *CopyHandler) PathCopyStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CopyHandler) GETCountAvailableCopy(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	copyID, err := strconv.Atoi(vars["CopyID"])
 	if err != nil || copyID <= 0 {

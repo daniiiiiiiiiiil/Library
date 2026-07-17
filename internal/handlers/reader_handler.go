@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"library/internal/handlers/dto"
-	"library/internal/middleware"
 	"library/internal/service"
 	"library/pkg/pagination"
 	"net/http"
@@ -22,31 +21,38 @@ func NewReaderHandlers(service *service.ReaderService) *ReaderHandlers {
 }
 
 func (h *ReaderHandlers) CreateReader(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
-
-	password := r.URL.Query().Get("password")
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	var req dto.CreateReaderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sendError(w, http.StatusBadRequest, "InvalidRequest", "Неверный формат запроса")
 		return
 	}
+
 	if err := req.Validate(); err != nil {
 		sendValidationError(w, err)
 		return
 	}
+
 	reader := req.ToDomain()
-	created, err := h.service.CreateReader(r.Context(), conn, &reader, password)
+	created, err := h.service.CreateReader(r.Context(), conn, &reader, req.Password)
 	if err != nil {
 		sendServiceError(w, err)
 		return
 	}
+
 	resp := dto.ReaderFromDomain(*created)
 	sendSuccess(w, http.StatusOK, resp)
 }
 
 func (h *ReaderHandlers) GetReader(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -63,7 +69,10 @@ func (h *ReaderHandlers) GetReader(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReaderHandlers) GetReaderID(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	ReaderID, err := strconv.Atoi(vars["id"])
 	if err != nil || ReaderID <= 0 {
@@ -80,7 +89,10 @@ func (h *ReaderHandlers) GetReaderID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReaderHandlers) GetReaderEmail(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	ReaderEmail := vars["email"]
 	if strings.TrimSpace(ReaderEmail) == "" {
@@ -97,7 +109,10 @@ func (h *ReaderHandlers) GetReaderEmail(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *ReaderHandlers) UpdateReader(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	ReaderID, err := strconv.Atoi(vars["id"])
 	if err != nil || ReaderID <= 0 {
@@ -105,14 +120,8 @@ func (h *ReaderHandlers) UpdateReader(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ReaderEmail := vars["email"]
-	if strings.TrimSpace(ReaderEmail) == "" {
-		sendError(w, http.StatusBadRequest, "InvalidEmail", "Email не может быть пустым")
-		return
-	}
-
 	var req dto.UpdateReaderRequest
-	if err := json.NewDecoder(r.Body).Decode(&dto.UpdateReaderRequest{}); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sendError(w, http.StatusBadRequest, "InvalidRequest", "Неверный формат запроса")
 		return
 	}
@@ -146,7 +155,10 @@ func (h *ReaderHandlers) UpdateReader(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReaderHandlers) DeleteReader(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	ReaderID, err := strconv.Atoi(vars["id"])
 	if err != nil || ReaderID <= 0 {
@@ -157,11 +169,14 @@ func (h *ReaderHandlers) DeleteReader(w http.ResponseWriter, r *http.Request) {
 		sendServiceError(w, err)
 		return
 	}
-	sendSuccess(w, http.StatusOK, nil)
+	sendSuccess(w, http.StatusNoContent, nil)
 }
 
 func (h *ReaderHandlers) BlockReader(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	readerID, err := strconv.Atoi(vars["id"])
@@ -183,7 +198,10 @@ func (h *ReaderHandlers) BlockReader(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReaderHandlers) UnblockReader(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	readerID, err := strconv.Atoi(vars["id"])
@@ -205,7 +223,10 @@ func (h *ReaderHandlers) UnblockReader(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReaderHandlers) GetActiveReaders(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -223,7 +244,10 @@ func (h *ReaderHandlers) GetActiveReaders(w http.ResponseWriter, r *http.Request
 }
 
 func (h *ReaderHandlers) GetDebtors(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -241,7 +265,10 @@ func (h *ReaderHandlers) GetDebtors(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReaderHandlers) GetReaderHistory(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	readerID, err := strconv.Atoi(vars["id"])
@@ -263,8 +290,7 @@ func (h *ReaderHandlers) GetReaderHistory(w http.ResponseWriter, r *http.Request
 
 	var transactionResponses []dto.TransactionResponse
 	for _, tx := range transactions {
-		var resp dto.TransactionResponse
-		transactionResponses = append(transactionResponses, resp.FromDomain(tx))
+		transactionResponses = append(transactionResponses, dto.TransactionRequestFromDomain(tx))
 	}
 
 	resp := map[string]interface{}{

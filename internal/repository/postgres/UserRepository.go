@@ -12,17 +12,14 @@ type UserRepository struct{}
 
 func (r *UserRepository) CreateUser(ctx context.Context, conn *pgx.Conn, user domain.User) error {
 	sqlQuery := `
-		INSERT INTO users (email, password_hash, role, reader_id, created_at, updated_at, last_login_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`
+        INSERT INTO users (email, password_hash, role, reader_id)
+        VALUES ($1, $2, $3, $4)
+    `
 	_, err := conn.Exec(ctx, sqlQuery,
 		user.Email,
 		user.PasswordHash,
 		user.Role,
 		user.ReaderID,
-		time.Now(),
-		time.Now(),
-		nil,
 	)
 	return err
 }

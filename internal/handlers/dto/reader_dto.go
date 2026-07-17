@@ -76,25 +76,26 @@ type UpdateReaderRequest struct {
 
 func (r *UpdateReaderRequest) Validate() error {
 	var errs errors.ValidationErrors
-	if strings.TrimSpace(*r.Name) == "" {
+
+	if r.Name != nil && strings.TrimSpace(*r.Name) == "" {
 		errs = append(errs, errors.ValidationError{
 			Field:   "name",
 			Message: "Имя не может быть пустым",
 		})
 	}
-	if strings.TrimSpace(*r.Phone) == "" {
+	if r.Phone != nil && strings.TrimSpace(*r.Phone) == "" {
 		errs = append(errs, errors.ValidationError{
 			Field:   "phone",
 			Message: "Номер телефона не может быть пустым",
 		})
 	}
-	if strings.TrimSpace(*r.Email) == "" {
+	if r.Email != nil && strings.TrimSpace(*r.Email) == "" {
 		errs = append(errs, errors.ValidationError{
 			Field:   "email",
 			Message: "Email не может быть пустым",
 		})
 	}
-	if *r.MaxBooks < 0 {
+	if r.MaxBooks != nil && *r.MaxBooks < 0 {
 		errs = append(errs, errors.ValidationError{
 			Field:   "maxBooks",
 			Message: "Максимальное количество книг не может быть меньше нуля",

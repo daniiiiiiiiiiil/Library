@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"library/internal/handlers/dto"
-	"library/internal/middleware"
 	"library/internal/service"
 	"library/pkg/pagination"
 	"net/http"
@@ -27,7 +26,10 @@ func NewReviewHandlers(service *service.ReviewService, bookService *service.Book
 }
 
 func (h *ReviewHandlers) CreateReview(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	readerID, err := strconv.Atoi(vars["reader_id"])
@@ -69,7 +71,10 @@ func (h *ReviewHandlers) CreateReview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReviewHandlers) GetReview(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	reviewID, err := strconv.Atoi(vars["review_id"])
 	if err != nil || reviewID <= 0 {
@@ -97,7 +102,10 @@ func (h *ReviewHandlers) GetReview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReviewHandlers) GetReviewBook(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -144,7 +152,10 @@ func (h *ReviewHandlers) GetReviewBook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReviewHandlers) GetReviewReader(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -201,7 +212,10 @@ func (h *ReviewHandlers) GetReviewReader(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *ReviewHandlers) GetReviewsByReader(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	readerID, err := strconv.Atoi(vars["readerId"])
@@ -243,7 +257,10 @@ func (h *ReviewHandlers) GetReviewsByReader(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *ReviewHandlers) UpdateReview(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	reviewID, err := strconv.Atoi(vars["id"])
@@ -263,6 +280,7 @@ func (h *ReviewHandlers) UpdateReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем readerID из контекста (JWT)
+	// и в других файлах тоже это есть
 	readerID := 0 // TODO: Получить из JWT
 
 	rating := 0.0
@@ -304,7 +322,10 @@ func (h *ReviewHandlers) UpdateReview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReviewHandlers) DeleteReview(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	reviewID, err := strconv.Atoi(vars["id"])
@@ -325,7 +346,10 @@ func (h *ReviewHandlers) DeleteReview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReviewHandlers) GetBookRating(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	bookID, err := strconv.Atoi(vars["bookId"])

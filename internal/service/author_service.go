@@ -182,7 +182,7 @@ func (s *AuthorService) DeleteAuthor(ctx context.Context, conn *pgx.Conn, id int
 		}
 	}
 
-	books, err := s.authorRepo.GetByBookID(ctx, conn, id)
+	books, err := s.authorRepo.GetByBookID(ctx, conn, id, 0, 0)
 	if err != nil {
 		s.logger.Error("failed to get author books", zap.Int("author_id", id), zap.Error(err))
 		return err
@@ -249,7 +249,7 @@ func (s *AuthorService) GetAuthorsByBook(ctx context.Context, conn *pgx.Conn, bo
 		}
 	}
 
-	authors, err := s.authorRepo.GetByBookID(ctx, conn, bookID)
+	authors, err := s.authorRepo.GetByBookID(ctx, conn, bookID, 0, 0)
 	if err != nil {
 		s.logger.Error("failed to get authors by book id", zap.Int("book_id", bookID), zap.Error(err))
 		return nil, 0, errors.BusinessError{

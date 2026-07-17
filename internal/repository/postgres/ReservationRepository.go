@@ -3,24 +3,34 @@ package postgres
 import (
 	"context"
 	"library/internal/domain"
+	"library/internal/repository"
 
 	"github.com/jackc/pgx/v5"
 )
 
+var _ repository.ReservationRepository = (*ReservationRepository)(nil)
+
 type ReservationRepository struct{}
 
-func (r *ReservationRepository) CreateReservation(ctx context.Context, conn *pgx.Conn, reserv *domain.Reservation) error {
+func (r *ReservationRepository) CreateReservation(ctx context.Context, conn *pgx.Conn, reserv *domain.Reservation) (*domain.Reservation, error) {
 	sqlQuery := `
-	INSERT INTO reservations (copy_id,reader_id,reserved_at,expires_at,status)
-	VALUES ($1,$2,$3,$4,$5)
-`
-	_, err := conn.Exec(ctx, sqlQuery,
+	INSERT INTO reservations (copy_id, reader_id, reserved_at, expires_at, status)
+	VALUES ($1, $2, $3, $4, $5)
+	RETURNING reservation_id
+	`
+	var id int
+	err := conn.QueryRow(ctx, sqlQuery,
 		reserv.CopyID,
 		reserv.ReaderID,
 		reserv.ReservedAt,
 		reserv.ExpiresAt,
-		reserv.Status)
-	return err
+		string(reserv.Status),
+	).Scan(&id)
+	if err != nil {
+		return nil, err
+	}
+	reserv.ID = id
+	return reserv, nil
 }
 
 func (r *ReservationRepository) GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reservation, error) {
@@ -39,19 +49,20 @@ func (r *ReservationRepository) GetByID(ctx context.Context, conn *pgx.Conn, id 
 		&reserve.Status); err != nil {
 		return nil, err
 	}
+	reserve.Status = domain.ReservationStatus(reserve.Status)
 	return &reserve, nil
 }
 
-func (r *ReservationRepository) GetActiveByReader(ctx context.Context, conn *pgx.Conn, readerID int, limit, offset int) ([]domain.Reservation, error) {
+func (r *ReservationRepository) GetActiveByReader(ctx context.Context, conn *pgx.Conn, readerID int, limit, offset int) ([]domain.Reservation, int, error) {
 	sqlQuery := `
 	SELECT reservation_id, copy_id, reader_id, reserved_at, expires_at, status
 	FROM reservations
 	WHERE reader_id = $1 AND status = 'active'
 	LIMIT $2 OFFSET $3
-`
+	`
 	rows, err := conn.Query(ctx, sqlQuery, readerID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 	var reservations []domain.Reservation
@@ -64,11 +75,18 @@ func (r *ReservationRepository) GetActiveByReader(ctx context.Context, conn *pgx
 			&reserve.ReservedAt,
 			&reserve.ExpiresAt,
 			&reserve.Status); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		reservations = append(reservations, reserve)
 	}
-	return reservations, nil
+
+	var total int
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM reservations WHERE reader_id = $1 AND status = 'active'`, readerID).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return reservations, total, nil
 }
 
 func (r *ReservationRepository) GetActiveByCopy(ctx context.Context, conn *pgx.Conn, copyID int, limit, offset int) ([]domain.Reservation, int, error) {

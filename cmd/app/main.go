@@ -2,125 +2,81 @@ package main
 
 import (
 	"context"
-	"library/internal/handlers"
 	"library/internal/infrastructure/audit"
-	"library/internal/repository/postgres"
+	"log"
+	"os"
+
+	"library/internal/handlers"
 	"library/internal/server"
 	"library/internal/service"
 	"library/pkg/database"
 	"library/pkg/logger"
-	"log"
+
+	"library/internal/repository/postgres"
 
 	"go.uber.org/zap"
 )
 
 func main() {
-	logg, closeLog, err := logger.NewLogger("DEBUG")
-	if err != nil {
-		log.Fatal("Failed to create logger:", err)
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = "info"
 	}
-	defer closeLog()
-
-	conn, err := database.Connect("postgres://postgres:dani123l@localhost:5432/library?sslmode=disable")
+	zapLogger, closeLogger, err := logger.NewLogger(logLevel)
 	if err != nil {
-		logg.Fatal("Failed to connect to database:", zap.Error(err))
+		log.Fatalf("failed to initialize logger: %v", err)
+	}
+	defer closeLogger()
+
+	zapLogger.Info("starting library service...")
+
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		databaseURL = "postgresql://postgres:dani123l@localhost:5432/library?sslmode=disable"
+	}
+
+	conn, err := database.Connect(databaseURL)
+	if err != nil {
+		zapLogger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer conn.Close(context.Background())
 
-	ctx := context.Background()
-	_ = ctx
+	zapLogger.Info("database connected successfully")
 
-	bookRepo := &postgres.BookRepository{}
 	authorRepo := &postgres.AuthorRepository{}
+	bookRepo := &postgres.BookRepository{}
+	copyRepo := &postgres.BookCopyRepository{}
 	genreRepo := &postgres.GenreRepository{}
 	publisherRepo := &postgres.PublisherRepository{}
-	copyRepo := &postgres.BookCopyRepository{}
 	readerRepo := &postgres.ReaderRepository{}
 	userRepo := &postgres.UserRepository{}
-	txRepo := &postgres.TransactionRepository{}
+	transactionRepo := &postgres.TransactionRepository{}
 	reservationRepo := &postgres.ReservationRepository{}
 	reviewRepo := &postgres.ReviewRepository{}
-	auditRepo := &audit.AuditLogRepository{}
 	settingRepo := &postgres.SettingRepository{}
+	auditRepo := &audit.AuditLogRepository{}
 
-	bookService := service.NewBookService(
-		bookRepo,
-		copyRepo,
-		authorRepo,
-		genreRepo,
-		publisherRepo,
-		auditRepo,
-		logg,
-	)
-	authorService := service.NewAuthorService(
-		authorRepo,
-		bookRepo,
-		auditRepo,
-		logg,
-	)
-	genreService := service.NewGenreService(
-		genreRepo,
-		bookRepo,
-		logg,
-	)
-	publisherService := service.NewPublisherService(
-		publisherRepo,
-		bookRepo,
-		logg,
-	)
-	copyService := service.NewCopyService(
-		copyRepo,
-		bookRepo,
-		readerRepo,
-		reservationRepo,
-		logg,
-	)
-	readerService := service.NewReaderService(
-		readerRepo,
-		userRepo,
-		txRepo,
-		logg,
-	)
-	transactionService := service.NewTransactionService(
-		txRepo,
-		copyRepo,
-		readerRepo,
-		bookRepo,
-		settingRepo,
-		reservationRepo,
-		logg,
-	)
-	reservationService := service.NewReservation(
-		reservationRepo,
-		copyRepo,
-		readerRepo,
-		bookRepo,
-		txRepo,
-		settingRepo,
-		logg,
-	)
-	reviewService := service.NewReview(
-		reviewRepo,
-		bookRepo,
-		readerRepo,
-		txRepo,
-		logg,
-	)
-	settingService := service.NewSettingService(
-		settingRepo,
-		auditRepo,
-		logg,
-	)
+	authorService := service.NewAuthorService(authorRepo, bookRepo, auditRepo, zapLogger)
+	bookService := service.NewBookService(bookRepo, copyRepo, authorRepo, genreRepo, publisherRepo, auditRepo, zapLogger)
+	copyService := service.NewCopyService(copyRepo, bookRepo, readerRepo, reservationRepo, zapLogger)
+	genreService := service.NewGenreService(genreRepo, bookRepo, zapLogger)
+	publisherService := service.NewPublisherService(publisherRepo, bookRepo, zapLogger)
+	readerService := service.NewReaderService(readerRepo, userRepo, transactionRepo, zapLogger)
+	reservationService := service.NewReservation(reservationRepo, copyRepo, readerRepo, bookRepo, transactionRepo, settingRepo, zapLogger)
+	reviewService := service.NewReview(reviewRepo, bookRepo, readerRepo, transactionRepo, zapLogger)
+	transactionService := service.NewTransactionService(transactionRepo, copyRepo, readerRepo, bookRepo, settingRepo, reservationRepo, zapLogger)
+	settingService := service.NewSettingService(settingRepo, auditRepo, zapLogger)
 
-	bookHandler := handlers.NewBookHandler(bookService)
 	authorHandler := handlers.NewHTTPHandlersAuthor(authorService)
 	copyHandler := handlers.NewHTTPHandlersCopy(copyService)
+	bookHandler := handlers.NewBookHandler(bookService)
 	genreHandler := handlers.NewGenreHandlers(genreService)
 	publisherHandler := handlers.NewPublisherHandler(publisherService)
 	readerHandler := handlers.NewReaderHandlers(readerService)
 	reservationHandler := handlers.NewReservationHandler(reservationService, copyService, bookService, readerService)
 	reviewHandler := handlers.NewReviewHandlers(reviewService, bookService, readerService)
-	transactionHandler := handlers.NewHTTPHandlersTransaction(transactionService)
+	transactionHandler := handlers.NewTransactionHandler(transactionService, readerService, copyService, bookService)
+	settingHandler := handlers.NewSettingsHandler(settingService)
 
 	httpServer := server.NewHTTPServer(
 		conn,
@@ -133,10 +89,11 @@ func main() {
 		reservationHandler,
 		reviewHandler,
 		transactionHandler,
+		settingHandler,
 	)
 
-	logg.Info("Starting HTTP server on :9091")
+	zapLogger.Info("starting HTTP server on :9091")
 	if err := httpServer.Start(); err != nil {
-		logg.Fatal("Failed to start HTTP server:", zap.Error(err))
+		zapLogger.Fatal("server failed", zap.Error(err))
 	}
 }

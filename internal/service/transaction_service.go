@@ -128,7 +128,8 @@ func (t *TransactionService) BorrowBook(ctx context.Context, conn *pgx.Conn, cop
 		return nil, err
 	}
 
-	if err := t.copyRepo.UpdateStatus(ctx, conn, copyID, "borrowed"); err != nil {
+	_, err = t.copyRepo.UpdateStatus(ctx, conn, copyID, "borrowed")
+	if err != nil {
 		t.logger.Error("failed to update copy status", zap.Int("copy_id", copyID), zap.Error(err))
 		return nil, errors.BusinessError{
 			Code:    "update_status_error",
@@ -195,7 +196,8 @@ func (t *TransactionService) ReturnBook(ctx context.Context, conn *pgx.Conn, tra
 		}
 	}
 
-	if err := t.copyRepo.UpdateStatus(ctx, conn, tx.CopyID, "available"); err != nil {
+	_, err = t.copyRepo.UpdateStatus(ctx, conn, tx.CopyID, "available")
+	if err != nil {
 		t.logger.Error("failed to update copy status", zap.Int("copy_id", tx.CopyID), zap.Error(err))
 		return nil, errors.BusinessError{
 			Code:    "ErrUpdateStatus",
@@ -211,7 +213,7 @@ func (t *TransactionService) ReturnBook(ctx context.Context, conn *pgx.Conn, tra
 		}
 	}
 
-	t.logger.Info("book returned successfully", zap.Int("transaction_id", transactionID), zap.Float64("fine_amount", tx.FineAmount), zap.String("status", tx.Status))
+	t.logger.Info("book returned successfully", zap.Int("transaction_id", transactionID), zap.Float64("fine", tx.FineAmount), zap.String("status", tx.Status))
 	return tx, nil
 }
 

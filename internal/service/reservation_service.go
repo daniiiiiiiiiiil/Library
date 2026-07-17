@@ -294,7 +294,7 @@ func (r *ReservationService) GetActiveCopyReservations(ctx context.Context, conn
 		}
 	}
 
-	activeCopy, err := r.reservRepo.GetActiveByCopy(ctx, conn, copyID, limit, offset)
+	activeCopy, total, err := r.reservRepo.GetActiveByCopy(ctx, conn, copyID, limit, offset)
 	if err != nil {
 		r.logger.Error("failed to get active copy reservations", zap.Int("copy_id", copyID), zap.Error(err))
 		return nil, 0, errors.NotFoundError{
@@ -303,8 +303,8 @@ func (r *ReservationService) GetActiveCopyReservations(ctx context.Context, conn
 		}
 	}
 
-	r.logger.Debug("get active copy reservations finished", zap.Int("copy_id", copyID), zap.Int("returned", len(activeCopy)))
-	return activeCopy, len(activeCopy), nil
+	r.logger.Debug("get active copy reservations finished", zap.Int("copy_id", copyID), zap.Int("returned", total))
+	return activeCopy, total, nil
 }
 
 func (s *ReservationService) ProcessExpiredReservations(ctx context.Context, conn *pgx.Conn, limit int) (int, error) {
@@ -467,7 +467,7 @@ func (s *ReservationService) GetActiveReaderReservationsWithDetails(ctx context.
 func (s *ReservationService) GetActiveReservationsByCopy(ctx context.Context, conn *pgx.Conn, copyID, limit, offset int) ([]domain.Reservation, int, error) {
 	s.logger.Debug("get active reservations by copy started", zap.Int("copy_id", copyID))
 
-	reservations, err := s.reservRepo.GetActiveByCopy(ctx, conn, copyID, limit, offset)
+	reservations, total, err := s.reservRepo.GetActiveByCopy(ctx, conn, copyID, limit, offset)
 	if err != nil {
 		s.logger.Error("failed to get active reservations by copy", zap.Int("copy_id", copyID), zap.Error(err))
 		return nil, 0, errors.BusinessError{
@@ -476,7 +476,6 @@ func (s *ReservationService) GetActiveReservationsByCopy(ctx context.Context, co
 		}
 	}
 
-	total := len(reservations)
 	s.logger.Debug("get active reservations by copy finished", zap.Int("copy_id", copyID), zap.Int("count", total))
 	return reservations, total, nil
 }

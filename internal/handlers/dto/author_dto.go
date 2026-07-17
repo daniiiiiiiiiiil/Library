@@ -36,6 +36,9 @@ func (r *CreateAuthorRequest) Validate() error {
 			Message: "Биография автора не может быть пустым",
 		})
 	}
+	if errs.HasErrors() {
+		return errs
+	}
 	return nil
 }
 
@@ -51,11 +54,11 @@ func (r *CreateAuthorRequest) ToDomain() domain.Author {
 
 func (r *CreateAuthorRequest) FromDomain(domain domain.Author) AuthorResponse {
 	return AuthorResponse{
-		id:         domain.ID,
-		first_name: domain.First_name,
-		last_name:  domain.Last_name,
-		biography:  domain.Biography,
-		birth_date: domain.Birthday,
+		ID:        domain.ID,
+		FirstName: domain.First_name,
+		LastName:  domain.Last_name,
+		Biography: domain.Biography,
+		BirthDate: domain.Birthday,
 	}
 }
 
@@ -68,19 +71,21 @@ type UpdateAuthorRequest struct {
 
 func (r *UpdateAuthorRequest) Validate() error {
 	var errs errors.ValidationErrors
-	if strings.TrimSpace(*r.FirstName) == "" {
+
+	// Проверяем только если поле не nil
+	if r.FirstName != nil && strings.TrimSpace(*r.FirstName) == "" {
 		errs = append(errs, errors.ValidationError{
 			Field:   "first_name",
 			Message: "Имя не может быть пустым",
 		})
 	}
-	if strings.TrimSpace(*r.LastName) == "" {
+	if r.LastName != nil && strings.TrimSpace(*r.LastName) == "" {
 		errs = append(errs, errors.ValidationError{
 			Field:   "last_name",
 			Message: "Фамилия не может быть пустым",
 		})
 	}
-	if strings.TrimSpace(*r.Biography) == "" {
+	if r.Biography != nil && strings.TrimSpace(*r.Biography) == "" {
 		errs = append(errs, errors.ValidationError{
 			Field:   "biography",
 			Message: "Биография не может быть пустой",
@@ -130,42 +135,42 @@ func (r *UpdateAuthorRequest) ToDomain(authorID int, existingAuthor domain.Autho
 }
 
 type AuthorResponse struct {
-	id         int       `json:"ID"`
-	first_name string    `json:"first_name"`
-	last_name  string    `json:"last_name"`
-	biography  string    `json:"biography"`
-	birth_date time.Time `json:"birth_date"`
+	ID        int       `json:"id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Biography string    `json:"biography"`
+	BirthDate time.Time `json:"birth_date"`
 }
 
 type AuthorListResponse struct {
-	authors    []AuthorResponse      `json:"authors"`
-	pagination pagination.Pagination `json:"pagination"`
+	Authors    []AuthorResponse      `json:"authors"`
+	Pagination pagination.Pagination `json:"pagination"`
 }
 
 type SearchAuthorRequest struct {
-	query  string `json:"query"`
-	limit  int    `json:"limit"`
-	offset int    `json:"offset"`
+	Query  string `json:"query"`
+	Limit  int    `json:"limit"`
+	Offset int    `json:"offset"`
 }
 
 func AuthorResponseFromDomain(author domain.Author) AuthorResponse {
 	return AuthorResponse{
-		id:         author.ID,
-		first_name: author.First_name,
-		last_name:  author.Last_name,
-		biography:  author.Biography,
-		birth_date: author.Birthday,
+		ID:        author.ID,
+		FirstName: author.First_name,
+		LastName:  author.Last_name,
+		Biography: author.Biography,
+		BirthDate: author.Birthday,
 	}
 }
 
 func NewAuthorListResponse(authors []domain.Author, total, limit, offset int) AuthorListResponse {
 	resp := AuthorListResponse{
-		authors:    make([]AuthorResponse, 0, len(authors)),
-		pagination: pagination.NewPagination(total, limit, offset),
+		Authors:    make([]AuthorResponse, 0, len(authors)),
+		Pagination: pagination.NewPagination(total, limit, offset),
 	}
 
 	for _, author := range authors {
-		resp.authors = append(resp.authors, AuthorResponseFromDomain(author))
+		resp.Authors = append(resp.Authors, AuthorResponseFromDomain(author))
 	}
 
 	return resp

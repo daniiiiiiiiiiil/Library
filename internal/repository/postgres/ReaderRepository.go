@@ -80,7 +80,7 @@ func (r *ReaderRepository) GetByEmail(ctx context.Context, conn *pgx.Conn, email
 	return &reader, nil
 }
 
-func (r *ReaderRepository) Update(ctx context.Context, conn *pgx.Conn, id int, reader domain.Reader) error {
+func (r *ReaderRepository) Update(ctx context.Context, conn *pgx.Conn, id int, reader domain.Reader) (*domain.Reader, error) {
 	sqlQuery := `
 		UPDATE readers
 		SET name = $1, phone = $2, email = $3, status = $4, max_books = $5, books_count = $6
@@ -95,7 +95,10 @@ func (r *ReaderRepository) Update(ctx context.Context, conn *pgx.Conn, id int, r
 		reader.BooksCount,
 		id,
 	)
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return &reader, nil
 }
 
 func (r *ReaderRepository) Delete(ctx context.Context, conn *pgx.Conn, id int) error {
@@ -317,7 +320,7 @@ func (r *ReaderRepository) HasDebt(ctx context.Context, conn *pgx.Conn, readerID
 		SELECT EXISTS (
 			SELECT 1
 			FROM transactions
-			WHERE reader_id = $1 AND fine_amount > 0 AND status = 'active'
+			WHERE reader_id = $1 AND fine > 0 AND status = 'active'
 		)
 	`
 	var exists bool

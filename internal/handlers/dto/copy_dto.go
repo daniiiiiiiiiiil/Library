@@ -9,42 +9,45 @@ import (
 )
 
 type CreateCopyRequest struct {
-	BookID    int    `json:"book_id"`
-	Title     string `json:"title"`
 	Condition string `json:"condition"`
 }
 
 func (r *CreateCopyRequest) Validate() error {
 	var errs errors.ValidationErrors
 
-	if r.BookID < 0 {
-		errs = append(errs, errors.ValidationError{
-			Field:   "book_id",
-			Message: "ID меньше 0",
-		})
-	}
-	if strings.TrimSpace(r.Title) == "" {
-		errs = append(errs, errors.ValidationError{
-			Field:   "title",
-			Message: "Заголовок не может быть пустым",
-		})
-	}
 	if strings.TrimSpace(r.Condition) == "" {
 		errs = append(errs, errors.ValidationError{
 			Field:   "condition",
 			Message: "condition не может быть пустым",
 		})
 	}
+
+	// Проверка допустимых значений
+	allowedConditions := []string{"excellent", "good", "fair", "poor", "damaged"}
+	isValid := false
+	for _, c := range allowedConditions {
+		if r.Condition == c {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		errs = append(errs, errors.ValidationError{
+			Field:   "condition",
+			Message: "condition должно быть одним из: excellent, good, fair, poor, damaged",
+		})
+	}
+
 	if errs.HasErrors() {
 		return errs
 	}
 	return nil
 }
 
-func (r *CreateCopyRequest) ToDomain(copyNumber int) domain.BookCopy {
+func (r *CreateCopyRequest) ToDomain(bookID, copyNumber int) domain.BookCopy {
 	return *domain.NewBookCopy(
-		r.BookID,
-		r.Title,
+		bookID,
+		"",
 		copyNumber,
 		r.Condition,
 	)
@@ -57,13 +60,13 @@ type UpdateCopyRequest struct {
 
 func (r *UpdateCopyRequest) Validate() error {
 	var errs errors.ValidationErrors
-	if strings.TrimSpace(*r.Condition) == "" {
+	if r.Condition != nil && strings.TrimSpace(*r.Condition) == "" {
 		errs = append(errs, errors.ValidationError{
 			Field:   "condition",
-			Message: "condition не может быть пуcтым",
+			Message: "condition не может быть пустым",
 		})
 	}
-	if strings.TrimSpace(*r.Status) == "" {
+	if r.Status != nil && strings.TrimSpace(*r.Status) == "" {
 		errs = append(errs, errors.ValidationError{
 			Field:   "status",
 			Message: "Статус не может быть пустым",

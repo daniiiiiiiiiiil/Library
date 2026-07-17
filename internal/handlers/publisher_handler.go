@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"library/internal/handlers/dto"
-	"library/internal/middleware"
 	"library/internal/service"
 	"library/pkg/pagination"
 	"net/http"
@@ -23,7 +22,10 @@ func NewPublisherHandler(service *service.PublisherService) *PublisherHandler {
 }
 
 func (h *PublisherHandler) CreatePublisher(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	var req dto.CreatePublisherRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -45,7 +47,10 @@ func (h *PublisherHandler) CreatePublisher(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *PublisherHandler) GetPublishers(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -61,7 +66,10 @@ func (h *PublisherHandler) GetPublishers(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *PublisherHandler) GetPublisher(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	PublisherID, err := strconv.Atoi(vars["publisherId"])
 	if err != nil || PublisherID <= 0 {
@@ -78,7 +86,10 @@ func (h *PublisherHandler) GetPublisher(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *PublisherHandler) UpdatePublisher(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	PublisherID, err := strconv.Atoi(mux.Vars(r)["publisherId"])
 	if err != nil || PublisherID <= 0 {
 		sendError(w, http.StatusBadRequest, "InvalidRequest", "Неверный формат ввода")
@@ -114,7 +125,10 @@ func (h *PublisherHandler) UpdatePublisher(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *PublisherHandler) DeletePublisher(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	PublisherID, err := strconv.Atoi(vars["publisherId"])
 	if err != nil || PublisherID <= 0 {
@@ -130,15 +144,18 @@ func (h *PublisherHandler) DeletePublisher(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *PublisherHandler) SearchPublisher(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	search := r.URL.Query().Get("search")
-	collumn := r.URL.Query().Get("collumn")
+	column := r.URL.Query().Get("column")
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	pagination.LimitOffset(limit, offset)
 
-	searchPublisher, total, err := h.service.SearchPublishers(r.Context(), conn, collumn, search, limit, offset)
+	searchPublisher, total, err := h.service.SearchPublishers(r.Context(), conn, column, search, limit, offset)
 	if err != nil {
 		sendServiceError(w, err)
 		return
@@ -148,7 +165,10 @@ func (h *PublisherHandler) SearchPublisher(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *PublisherHandler) GetBooksPublisher(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 	vars := mux.Vars(r)
 	publisherID, err := strconv.Atoi(vars["publisherId"])
 	if err != nil || publisherID <= 0 {

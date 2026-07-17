@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// BookRepository определяет методы для работы с книгами
 type BookRepository interface {
 	CreateBook(ctx context.Context, conn *pgx.Conn, book domain.Book) (*domain.Book, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Book, error)
@@ -28,7 +27,6 @@ type BookRepository interface {
 	UpdateRatingAndCount(ctx context.Context, conn *pgx.Conn, bookID int, reviewsCount int) error
 }
 
-// AuthorRepository определяет методы для работы с авторами
 type AuthorRepository interface {
 	CreateAuthor(ctx context.Context, conn *pgx.Conn, author *domain.Author) (*domain.Author, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Author, error)
@@ -39,14 +37,13 @@ type AuthorRepository interface {
 	Exists(ctx context.Context, conn *pgx.Conn, authorID int) (bool, error)
 	ExistsByName(ctx context.Context, conn *pgx.Conn, firstName, lastName string) (bool, error)
 	ExistsByNameExcludeID(ctx context.Context, conn *pgx.Conn, firstName, lastName string, excludeID int) (bool, error)
-	GetByBookID(ctx context.Context, conn *pgx.Conn, bookID int) ([]domain.Author, error)
+	GetByBookID(ctx context.Context, conn *pgx.Conn, bookID int, limit, offset int) ([]domain.Author, error)
 	CreateBookAuthor(ctx context.Context, conn *pgx.Conn, bookID, authorID int) error
 	DeleteBookAuthorsByBookID(ctx context.Context, conn *pgx.Conn, bookID int) error
 	CountAuthor(ctx context.Context, conn *pgx.Conn) (int, error)
 	GetBooksByAuthorID(ctx context.Context, conn *pgx.Conn, authorID int) ([]domain.Book, error)
 }
 
-// GenreRepository определяет методы для работы с жанрами
 type GenreRepository interface {
 	CreateGenre(ctx context.Context, conn *pgx.Conn, genre domain.Genre) (*domain.Genre, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Genre, error)
@@ -65,7 +62,6 @@ type GenreRepository interface {
 	CountBooksByGenreID(ctx context.Context, conn *pgx.Conn, genreID int) (int, error)
 }
 
-// PublisherRepository определяет методы для работы с издательствами
 type PublisherRepository interface {
 	Create(ctx context.Context, conn *pgx.Conn, publisher domain.Publisher) (*domain.Publisher, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Publisher, error)
@@ -79,7 +75,6 @@ type PublisherRepository interface {
 	Count(ctx context.Context, conn *pgx.Conn) (int, error)
 }
 
-// BookCopyRepository определяет методы для работы с копиями книг
 type BookCopyRepository interface {
 	CreateCopy(ctx context.Context, conn *pgx.Conn, bookCopy *domain.BookCopy) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.BookCopy, error)
@@ -96,7 +91,6 @@ type BookCopyRepository interface {
 	ClearReaderAndBorrowed(ctx context.Context, conn *pgx.Conn, id int) error
 }
 
-// ReaderRepository определяет методы для работы с читателями
 type ReaderRepository interface {
 	CreateReader(ctx context.Context, conn *pgx.Conn, reader *domain.Reader) (*domain.Reader, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reader, error)
@@ -118,7 +112,6 @@ type ReaderRepository interface {
 	HasDebt(ctx context.Context, conn *pgx.Conn, readerID int) (bool, error)
 }
 
-// UserRepository определяет методы для работы с пользователями
 type UserRepository interface {
 	CreateUser(ctx context.Context, conn *pgx.Conn, user domain.User) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.User, error)
@@ -130,7 +123,6 @@ type UserRepository interface {
 	DeleteByReaderID(ctx context.Context, conn *pgx.Conn, readerID int) error
 }
 
-// TransactionRepository определяет методы для работы с транзакциями
 type TransactionRepository interface {
 	CreateTransaction(ctx context.Context, conn *pgx.Conn, transaction domain.Transaction) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Transaction, error)
@@ -148,12 +140,11 @@ type TransactionRepository interface {
 	HasReaderBorrowedBook(ctx context.Context, conn *pgx.Conn, readerID, bookID int) (bool, error)
 }
 
-// ReservationRepository определяет методы для работы с бронированиями
 type ReservationRepository interface {
 	CreateReservation(ctx context.Context, conn *pgx.Conn, reserv *domain.Reservation) (*domain.Reservation, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (*domain.Reservation, error)
 	GetActiveByReader(ctx context.Context, conn *pgx.Conn, readerID, limit, offset int) ([]domain.Reservation, int, error)
-	GetActiveByCopy(ctx context.Context, conn *pgx.Conn, copyID, limit, offset int) ([]domain.Reservation, error)
+	GetActiveByCopy(ctx context.Context, conn *pgx.Conn, copyID, limit, offset int) ([]domain.Reservation, int, error)
 	UpdateStatus(ctx context.Context, conn *pgx.Conn, id int, status string) error
 	Delete(ctx context.Context, conn *pgx.Conn, id int) error
 	GetExpired(ctx context.Context, conn *pgx.Conn, limit, offset int) ([]domain.Reservation, error)
@@ -161,7 +152,6 @@ type ReservationRepository interface {
 	HasActiveForCopy(ctx context.Context, conn *pgx.Conn, copyID int) (bool, error)
 }
 
-// ReviewRepository определяет методы для работы с отзывами
 type ReviewRepository interface {
 	CreateReview(ctx context.Context, conn *pgx.Conn, review domain.Review) (*domain.Review, error)
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Review, error)
@@ -176,7 +166,6 @@ type ReviewRepository interface {
 	Search(ctx context.Context, conn *pgx.Conn, column, search string, limit, offset int) ([]domain.Review, int, error)
 }
 
-// SettingRepository определяет методы для работы с настройками
 type SettingRepository interface {
 	CreateSetting(ctx context.Context, conn *pgx.Conn, setting domain.Setting) error
 	GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Setting, error)
@@ -189,7 +178,6 @@ type SettingRepository interface {
 	Exists(ctx context.Context, conn *pgx.Conn, key string) (bool, error)
 }
 
-// AuditLogRepository определяет методы для работы с аудит-логами
 type AuditLogRepository interface {
 	CreateAuditLog(ctx context.Context, conn *pgx.Conn, log audit.AuditLog) error
 }

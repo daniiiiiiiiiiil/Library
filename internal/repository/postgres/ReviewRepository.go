@@ -13,25 +13,32 @@ type ReviewRepository struct{}
 
 func (r *ReviewRepository) CreateReview(ctx context.Context, conn *pgx.Conn, review domain.Review) (*domain.Review, error) {
 	sqlQuery := `
-		INSERT INTO reviews (book_id, reader_id, rating, comment, created_at)
-		VALUES ($1, $2, $3, $4, $5)
-	`
-	_, err := conn.Exec(ctx, sqlQuery,
+        INSERT INTO reviews (book_id, reader_id, rating, comment, created_at)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING review_id
+    `
+	var id int
+	err := conn.QueryRow(ctx, sqlQuery,
 		review.BookID,
 		review.ReaderID,
 		review.Rating,
 		review.Comment,
 		time.Now(),
-	)
-	return &review, err
+	).Scan(&id)
+	if err != nil {
+		return nil, err
+	}
+
+	review.ID = id
+	return &review, nil
 }
 
 func (r *ReviewRepository) GetByID(ctx context.Context, conn *pgx.Conn, id int) (domain.Review, error) {
 	sqlQuery := `
-		SELECT review_id, book_id, reader_id, rating, comment, created_at, updated_at
-		FROM reviews
-		WHERE review_id = $1
-	`
+        SELECT review_id, book_id, reader_id, rating, comment, created_at, updated_at
+        FROM reviews
+        WHERE review_id = $1
+    `
 	var review domain.Review
 	err := conn.QueryRow(ctx, sqlQuery, id).Scan(
 		&review.ID,
@@ -43,6 +50,9 @@ func (r *ReviewRepository) GetByID(ctx context.Context, conn *pgx.Conn, id int) 
 		&review.UpdatedAt,
 	)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.Review{}, fmt.Errorf("review с ID %d нету", id)
+		}
 		return domain.Review{}, err
 	}
 	return review, nil

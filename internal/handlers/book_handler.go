@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"library/internal/handlers/dto"
-	"library/internal/middleware"
 	"library/pkg/pagination"
 	"net/http"
 	"strconv"
@@ -27,7 +26,10 @@ func NewBookHandler(service *service.BookService) *BookHandler {
 // 1. CreateBook — POST /api/v1/books
 
 func (h *BookHandler) CreateBook(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	var req dto.CreateBookRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -54,7 +56,10 @@ func (h *BookHandler) CreateBook(w http.ResponseWriter, r *http.Request) {
 // 2. GetBook — GET /api/v1/books/{id}
 
 func (h *BookHandler) GetBook(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -76,7 +81,10 @@ func (h *BookHandler) GetBook(w http.ResponseWriter, r *http.Request) {
 // 3. GetBookByISBN — GET /api/v1/books/isbn/{isbn}
 
 func (h *BookHandler) GetBookByISBN(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	isbn := vars["isbn"]
@@ -98,7 +106,10 @@ func (h *BookHandler) GetBookByISBN(w http.ResponseWriter, r *http.Request) {
 // 4. ListBooks — GET /api/v1/books
 
 func (h *BookHandler) ListBooks(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -118,7 +129,10 @@ func (h *BookHandler) ListBooks(w http.ResponseWriter, r *http.Request) {
 // 5. SearchBooks — GET /api/v1/books/search
 
 func (h *BookHandler) SearchBooks(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	column := r.URL.Query().Get("column")
 	search := r.URL.Query().Get("search")
@@ -148,7 +162,10 @@ func (h *BookHandler) SearchBooks(w http.ResponseWriter, r *http.Request) {
 // 6. GetPopularBooks — GET /api/v1/books/popular
 
 func (h *BookHandler) GetPopularBooks(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	if limit <= 0 {
@@ -172,7 +189,10 @@ func (h *BookHandler) GetPopularBooks(w http.ResponseWriter, r *http.Request) {
 // 7. UpdateBook — PUT /api/v1/books/{id}
 
 func (h *BookHandler) UpdateBook(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -225,7 +245,10 @@ func (h *BookHandler) UpdateBook(w http.ResponseWriter, r *http.Request) {
 // 8. DeleteBook — DELETE /api/v1/books/{id}
 
 func (h *BookHandler) DeleteBook(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -245,7 +268,10 @@ func (h *BookHandler) DeleteBook(w http.ResponseWriter, r *http.Request) {
 // 9. AddCopy — POST /api/v1/books/{id}/copies
 
 func (h *BookHandler) AddCopy(w http.ResponseWriter, r *http.Request) {
-	conn := middleware.GetConnFromContext(r)
+	conn, ok := getConnOrError(w, r)
+	if !ok {
+		return
+	}
 
 	vars := mux.Vars(r)
 	bookID, err := strconv.Atoi(vars["id"])
